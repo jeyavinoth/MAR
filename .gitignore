@@ -1,3 +1,4 @@
+# data files 
 *.dat
 *.cdf
 *.nc
@@ -6,9 +7,11 @@
 *.tgz
 *.mat
 
+# compiled output files 
 *.o
 a.out
 
+# folders
 in/
 out/
 run/
