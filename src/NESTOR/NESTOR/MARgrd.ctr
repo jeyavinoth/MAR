@@ -5,7 +5,7 @@ PARAMETERS FOR MAR GRID CREATION
 1                       | Map type (0=polar,1=stereo,2=lambert)
 ------------------------|------------------------------------------------
 -40                     | MAR domain center longitude
-41                      | MAR domain center longitude (grid point = imez)
+40                      | MAR domain center longitude (grid point = imez)
 70.50                   | MAR domain center latitude
 70                      | MAR domain center latitude  (grid point = jmez)
 ------------------------|------------------------------------------------
@@ -15,10 +15,10 @@ PARAMETERS FOR MAR GRID CREATION
 ------------------------|------------------------------------------------
 0.01                    | Pressure at top (kPa)                              
 ------------------------|------------------------------------------------
-2.                      | zzmin= STD NEW (0=>OK) Vertical discretisation
-0                       | aavu=  STD NEW (0=>OK) "
-0                       | bbvu=  STD NEW (0=>OK) "
-0                       | ccvu=  STD NEW (0=>OK) "
+3.                      | zzmin= STD NEW (0=>OK) Vertical discretisation
+1.8                     | aavu=  STD NEW (0=>OK) "
+1.13                    | bbvu=  STD NEW (0=>OK) "
+1000                    | ccvu=  STD NEW (0=>OK) "
 ------------------------|------------------------------------------------
 T                       | Fine resolution of the Surface Layer
 ------------------------|------------------------------------------------

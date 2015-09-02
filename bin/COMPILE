@@ -100,7 +100,7 @@ case $set_foc in
   export foc="ifort"
   export opt="-w -zero -static -vec_report0 -shared-intel -mcmodel=medium -mp1 -ipo -O3 -xSSE4.1 -traceback -assume buffered_io" # -132
   export lnk="-lnetcdf_ifort"
-  export netcdf="/usr/include/netcdf.inc" 
+  export netcdf="/usr/local/include/netcdf.inc" 
 
   if [ $cluster == "nasa" ] ; then
    export lnk="-L /discover/nobackup/eunoble/model/MAR_Libs -lnetcdf_ifort"
