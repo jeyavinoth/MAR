@@ -1,0 +1,321 @@
+#!/bin/ksh
+# 
+#  v1.2 - 16.09.2005 (17.01.2006)
+#
+# NAME
+#
+#   POMME.x - Compile POMME.f and POMME.inc and submit the job on Rhodes
+#             for a specified period
+#                                                                               
+# SYNOPSIS                                                                      
+#                                                                               
+#   POMME.x [-h]
+#                                                                               
+# OPERANDS                                                                      
+#                                                                               
+#   -h: display help [optional]
+#                                                                               
+# DESCRIPTION                                                                   
+#                                                                               
+#   The POMME.x script creates the file POMME.ctr according to the user's
+#   preferences (see here after), compiles the program POMME.f (+POMME.inc) and
+#   submits the jobs on Rhodes.
+#
+#   How to proceed:
+#   1. create a main folder in which POMME will run, name it like you want
+#   2. create a subfolder 'input' and transfer all required input files into it
+#   3. set the preferences here after
+#   4. execute POMME.x and wait
+#                                                                               
+
+
+#*******************************************************************************
+# user's parameters
+
+pwd=$WORKDIR/POMME            #main folder (absolute path)
+
+run=F86                       #run name [3 char.]
+
+start=011987                  #post-process from MMYYYY (month & year)
+ stop=121987                  #             to   MMYYYY (month & year)
+step=3                        #             with a step of M month(s)
+
+#i.e. the period will be divided into (stop-start+1)/step slices corresponding
+#each one to an ouput file of step-months length.
+#(These informations are written in POMME.ctr.)
+#
+#*******************************************************************************
+# Don't modify anything beyond this line unless you know what you're doing. Any
+# trouble would be your own responsability.
+#*******************************************************************************
+
+
+#-------------------------------------------------------------------------------
+# HELP
+#-------------------------------------------------------------------------------
+
+
+if [ $# -ne 0 ] ; then
+  head -29 $0 && exit 99
+fi
+
+
+#-------------------------------------------------------------------------------
+# 1 - Initialisation
+#-------------------------------------------------------------------------------
+echo ; echo "---- 1 ---- Initialisation" ; echo
+
+
+#date
+
+echo ; echo `date` ; echo
+
+#error function: display an error message
+
+  #$1 = error message to display        
+  #$2 = error extension for the msg file
+
+DAMNED () { echo ; echo '@&?%! '$1 ; echo ; exit ; }
+
+#current directory
+
+echo "current directory: $pwd"
+
+#check the run name
+
+[ ${#run} -ne 3 ] && DAMNED "inconsistent run name [$run]"
+
+echo "run name         : $run"
+
+#check the given period(s) of post-processing
+
+year=${start#??}
+[ $year != ${stop#??} ] && DAMNED "inconsistent year [$year/${stop#??}]"
+
+m1=${start%$year}
+m2=${stop%$year}
+[ ${#m1} -ne 2 ] && DAMNED "wrong format for the initial month [$m1]"
+[ ${#m2} -ne 2 ] && DAMNED "wrong format for the final month [$m2]"
+
+[ $(( (m2 - m1 + 1) % $step )) -ne 0 ] && DAMNED "wrong post-processing time step [$step]"
+
+[ $step -eq 1 ] && tmp="-month" || tmp="-months"
+
+echo "post-process     : from $m1 $year to $m2 $year with a $step$tmp step"
+
+#batch time on Rhodes
+
+batchtime=3600 && tmp="daytime"
+[ $step -ge 2 ] && batchtime=7200 && tmp="nighttime/WE"
+[ $step -ge 4 ] && batchtime=10800
+echo "batch time       : $batchtime s ($tmp)"
+
+
+#-------------------------------------------------------------------------------
+# 2 - Post-processing
+#-------------------------------------------------------------------------------
+echo ; echo "---- 2 ---- Post-processing"
+
+#loop on n period(s)
+
+i=1
+while [ $i -le $(( (m2 - m1 + 1) / $step )) ] ; do
+
+  #period
+
+  mm1=$(( m1 + (i-1) * step))
+  mm2=$(( mm1 + step - 1 ))
+  [ ${#mm1} -eq 1 ] && mm1=0$mm1
+  [ ${#mm2} -eq 1 ] && mm2=0$mm2
+
+  #create a subfolder for the period
+
+  cd $pwd
+  [ -d $year.${mm1}-$mm2 ] && rm -rf $year.${mm1}-$mm2
+  mkdir $year.${mm1}-$mm2
+
+#----------------------------------------
+# POMME: temporal mean
+#----------------------------------------
+echo ; echo "POMME: TEMPORAL MEAN" ; echo
+
+  #prepare needed files: POMME.ctr
+
+  echo "#" > POMME.ctr
+  echo "#POMME.f necessary parameters" >> POMME.ctr
+  echo "#" >> POMME.ctr
+  echo "$run                 # Name of the run                     [max. 3 char.]" >> POMME.ctr
+  echo "$year                # Year to post-process                        [YYYY]" >> POMME.ctr
+  echo "$mm1                  # Month when to start the post-processing       [MM]" >> POMME.ctr
+  echo "$mm2                  # Month when to end   the post-processing       [MM]" >> POMME.ctr
+  echo "                    #                  (see POMME.f for further details)" >> POMME.ctr
+
+  #prepare needed files: create a subfolder for the period
+
+  cd $pwd
+  [ -d $year.${mm1}-$mm2 ] && rm -rf $year.${mm1}-$mm2
+  mkdir $year.${mm1}-$mm2
+
+  #link needed files
+
+  cd $year.${mm1}-$mm2
+  cp    ../POMME.ctr   .
+  ln -s ../POMME.f     .
+  ln -s ../POMME.inc   .
+  ln -s ../NETCDF.mod  .
+  ln -s ../input       .
+  mkdir core
+  
+  #prepare job on Rhodes
+  echo "prepare job on Rhodes... [WA$run.$year.${mm1}-$mm2.nc]"
+
+  echo "#!/bin/ksh"                                                 >  pomme.cmd
+  echo "#QSUB -ro"                                                  >> pomme.cmd
+  echo "#QSUB -eo"                                                  >> pomme.cmd
+  echo "#QSUB -r pom${year#??}$i"                                   >> pomme.cmd
+  echo "#QSUB -lT $batchtime"                                       >> pomme.cmd
+
+  #prepare POMME on Rhodes
+
+  echo                                                              >> pomme.cmd
+  echo "cd $pwd/$year.${mm1}-$mm2"                                  >> pomme.cmd
+  echo                                                              >> pomme.cmd
+  echo "echo"                                                       >> pomme.cmd
+  echo "echo \"compile/link POMME...\""                             >> pomme.cmd
+  echo "echo"                                                       >> pomme.cmd
+  echo                                                              >> pomme.cmd
+  echo "f90  -c POMME.f"                                            >> pomme.cmd
+  echo "f90  POMME.o  -o POMME  -L/usr/local/pub/lib64 -lnetcdf"    >> pomme.cmd
+  echo "[ \$? != 0 ] && echo \"compiling/linking error\" && exit"   >> pomme.cmd
+  echo                                                              >> pomme.cmd
+  echo "echo"                                                       >> pomme.cmd
+  echo "echo \"launch POMME...\""                                   >> pomme.cmd
+  echo "echo"                                                       >> pomme.cmd
+  echo                                                              >> pomme.cmd
+  echo "timex ./POMME > POMME.log"                                  >> pomme.cmd
+  echo                                                              >> pomme.cmd
+
+#----------------------------------------
+# NCO: regional mean
+#----------------------------------------
+echo ; echo "NCO: REGIONAL MEAN" ; echo
+
+  for region in "WAM" "WSA" "CSA" "ESA" "CSU" "CGU" "NIA" "OUE" "GOU" ; do
+
+  #define region borders
+
+  case $region in
+  (WAM) imin=19 && imax=117 && jmin=35 && jmax=75 && tmp="WAM domain" ;;
+  (WSA) imin=19 && imax=40  && jmin=58 && jmax=72 && tmp="Western Sahel" ;;
+  (CSA) imin=41 && imax=95  && jmin=58 && jmax=72 && tmp="Central Sahel" ;;
+  (ESA) imin=96 && imax=117 && jmin=58 && jmax=72 && tmp="Eastern Sahel" ;;
+  (CSU) imin=41 && imax=95  && jmin=44 && jmax=57 && tmp="Central Sudan" ;;
+  (CGU) imin=41 && imax=95  && jmin=35 && jmax=43 && tmp="Central Guinea" ;;
+  (NIA) imin=72 && imax=76  && jmin=57 && jmax=60 && tmp="Niamey area" ;;
+  (OUE) imin=72 && imax=76  && jmin=46 && jmax=49 && tmp="Oueme catchment" ;;
+  (GOU) imin=63 && imax=65  && jmin=61 && jmax=70 && tmp="Gourma" ;;
+  (*)   DAMNED "unknown region" && exit ;;
+  esac
+
+  # +------+------+
+  # | i1j2 | i2j2 |
+  # +------+------+  WAM region: to be cut for reasons of memory restriction
+  # | i1j1 | i2j1 |              (the mean can't be computed in one time)
+  # +------+------+
+  case $region in (WAM)
+    imin11=$imin         && imax11=$((imin11+(imax-imin)/2))
+    jmin11=$jmin         && jmax11=$((jmin11+(jmax-jmin)/2))
+    imin21=$((imax11+1)) && imax21=$imax
+    jmin21=$jmin11       && jmax21=$jmax11
+    imin12=$imin11       && imax12=$imax11
+    jmin12=$((jmax11+1)) && jmax12=$jmax
+    imin22=$imin21       && imax22=$imax21
+    jmin22=$jmin12       && jmax22=$jmax12 ;;
+  esac
+
+  #input/output file names
+
+  input="WA$run.$year.${mm1}-$mm2.nc"
+  output=${input%$run*}$run.$region.${input#??$run\.}
+                                                  #e.g.: WAF86.CGU.1987.10-12.nc
+
+  #title
+  title="MAR exp: $run - $tmp"
+
+  #prepare NCO on Rhodes
+  echo "prepare job on Rhodes for region $region... [$output]"
+ 
+  echo "echo"                                                       >> pomme.cmd
+  echo "echo \"launch NCO for region $region...\""                  >> pomme.cmd
+  echo "echo"                                                       >> pomme.cmd
+  echo                                                              >> pomme.cmd
+  echo "set -x"                                                     >> pomme.cmd
+  case $region in
+  (WAM)
+       #mean 1
+  echo "ncwa --fortran --overwrite \\"                              >> pomme.cmd
+  echo "     -a x,y \\"                                             >> pomme.cmd
+  echo "     -d x,$((imin11-1)),$(((imax11-1)/2)) \\"               >> pomme.cmd
+  echo "     -d y,$((jmin11-1)),$(((jmax11-1)/2)) \\"               >> pomme.cmd
+  echo "     $input tmp1.nc"                                        >> pomme.cmd
+       #mean 2
+  echo "ncwa --fortran --overwrite \\"                              >> pomme.cmd
+  echo "     -a x,y \\"                                             >> pomme.cmd
+  echo "     -d x,$((imin21-1)),$(((imax21-1)/2)) \\"               >> pomme.cmd
+  echo "     -d y,$((jmin21-1)),$(((jmax21-1)/2)) \\"               >> pomme.cmd
+  echo "     $input tmp2.nc"                                        >> pomme.cmd
+       #mean 3
+  echo "ncwa --fortran --overwrite \\"                              >> pomme.cmd
+  echo "     -a x,y \\"                                             >> pomme.cmd
+  echo "     -d x,$((imin12-1)),$(((imax12-1)/2)) \\"               >> pomme.cmd
+  echo "     -d y,$((jmin12-1)),$(((jmax12-1)/2)) \\"               >> pomme.cmd
+  echo "     $input tmp3.nc"                                        >> pomme.cmd
+       #mean 4
+  echo "ncwa --fortran --overwrite \\"                              >> pomme.cmd
+  echo "     -a x,y \\"                                             >> pomme.cmd
+  echo "     -d x,$((imin22-1)),$(((imax22-1)/2)) \\"               >> pomme.cmd
+  echo "     -d y,$((jmin22-1)),$(((jmax22-1)/2)) \\"               >> pomme.cmd
+  echo "     $input tmp4.nc"                                        >> pomme.cmd
+       #(mean 1 + mean 2 + mean 3 + mean 4)/4
+  echo "ncea --fortran --overwrite \\"                              >> pomme.cmd
+  echo "     -y avg tmp[1234].nc $output"                           >> pomme.cmd
+  echo "rm -f tmp[1234].nc"                                         >> pomme.cmd
+
+  echo "ncatted -a title,global,m,c,\"$title\" $output"             >> pomme.cmd
+  echo "set +x"                                                     >> pomme.cmd
+  echo                                                              >> pomme.cmd
+  ;;
+  (*)
+  echo "ncwa --fortran --overwrite \\"                              >> pomme.cmd
+  echo "     -a x,y \\"                                             >> pomme.cmd
+  echo "     -d x,$((imin-1)),$((imax-1)) \\"                       >> pomme.cmd
+  echo "     -d y,$((jmin-1)),$((jmax-1)) \\"                       >> pomme.cmd
+  echo "     $input $output"                                        >> pomme.cmd
+  echo "ncatted -a title,global,m,c,\"$title\" $output"             >> pomme.cmd
+  echo "set +x"                                                     >> pomme.cmd
+  echo                                                              >> pomme.cmd
+  ;;
+  esac
+
+  done  #loop on regions
+
+
+#----------------------------------------
+# SUBMIT JOB
+#----------------------------------------
+echo ; echo "SUBMIT JOB" ; echo
+
+  qsub pomme.cmd
+
+  cd $pwd
+  i=$((i+1))
+  echo
+
+done
+
+
+#-------------------------------------------------------------------------------
+#END                                                                           
+
+echo `date`
+echo

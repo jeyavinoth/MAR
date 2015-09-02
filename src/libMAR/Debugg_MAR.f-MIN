@@ -1,0 +1,15 @@
+      subroutine Debugg_MAR(comment)
+
+C +----------------------------------------------------------------------------+
+C |                                                                            |
+C |                                                                            |
+C |                                                                            |
+C +----------------------------------------------------------------------------+
+
+      IMPLICIT              none
+      include              'MARCTR.inc'
+      character*10          comment
+      write(6,6000)  itexpe,comment
+ 6000 format(i6,3x,a10)
+      return
+      end

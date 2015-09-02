@@ -1,0 +1,19 @@
+MAR Pre-processor: 
+^^^^^^^^^^^^^^^^^
+
+------------------+----------------------------------+-------------------------------------------------------------
+MAR_pp.f          | Pre-processor                    | fortran (f77) code
+MAR_pp_dat.f      | Pre-processor                    | fortran (f77) code: block data (list of recognized options)
+MAR_pp.inc        | Pre-processor                    | fortran (f77) code: block data parameters
+MAR_pp            | Pre-processor                    | fortran (exe) code: executable
+MAR_pp-Intel.x    | Pre-processor                    | compilation shell for linux
+MAR_pp-Alpha.x    | Pre-processor                    | compilation shell for  unix
+MAR_pp.inp.AFW    | Pre-processor                    | list of OPTIONS   for Africa and Europe
+MAR_pp.inp.ANT    | Pre-processor                    | list of OPTIONS   for Antarctica
+MAR_pp.inp.NEW    | Pre-processor                    | list of OPTIONS  (new presentation/to be completed)
+------------------+----------------------------------+-------------------------------------------------------------
+                  |                                  |
+MARstk.f          | Fortran (sxf90) listing analyser | fortran (f77) code 
+MARstk.x          | Fortran (sxf90) listing analyser | compilation/execution shell
+setdat            |                                  |
+------------------+----------------------------------+-------------------------------------------------------------

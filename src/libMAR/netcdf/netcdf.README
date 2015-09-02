@@ -1,0 +1,30 @@
+
+How to compile netcdf.3.5.1 on linux mandrake 9.0, pentium 4
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The following operations must be done (tasks 1 and 12 under root and the others under your personal login): 
+ 1. install the ifc compiler
+ 2. mkdir ~/workdir  (workdir would be a working directory where one may work safely)
+ 3. cd ~/workdir
+ 4. dowlnload netcdf.tar (the version containing the source files) from 
+    http://www.unidata.ucar.edu/packages/netcdf/faq.html#howtoget
+ 5. tar xvf netcdf.tar
+ 6. cd netcdf-3.5.1/src
+ 7. (very important, this is an astuteness; indeed a key must be defined for ifc: pgiFortran is chosen because it ressemble ifc):
+     edit fortran/cfortran.h  and add
+     #define pgiFortran
+ 8. (very important):
+     export CC=gcc
+     export FC=ifc
+     export F90=ifc
+     export FFLAGS=-w
+     export F90FLAGS=-w
+ 9. (this a standard step):
+     ./configure
+10. (standard step):
+      make
+11. (standard step):
+      make install
+      This last operation creates the directories bin, man, include and lib in the directory ~/workdir/netcdf-3.5.1
+12. These directories must be copied in a relevant parent directory (e.g., /user or /user/local)
+

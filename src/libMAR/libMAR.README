@@ -1,0 +1,32 @@
+MAR auxiliary routines
+______________________
+AdvVER.f              | debugging routine (called by DYNadv_LFB or DYNadvvLFB)
+DDD_FF.f              | computes  Wind Speed and Direction from stereographic   MAR components
+Debugg_MAR.f          | debugging routine (called by MAR if #DB is activated by the pre-processor)
+                      | PLEASE ADAPT i_wri, j_wri, and internal switches to your problem
+Debugg_MAR.f-MIN      | debugging routine (called by MAR if #DB is activated by the pre-processor)
+                      | MINIMAL Set-Up and OUTPUT
+Debugg_MAR.f-SBL      | debugging routine (called by MAR if #DB is activated by the pre-processor)
+                      | Detailled OUTPUT of SBL fluxes, with an emphasis on the stability
+Debugg_MAR.f-p_s      | debugging routine (called by MAR if #DB is activated by the pre-processor)
+                      | Detailled OUTPUT of p*
+dump3D_MAR.f          | debugging routine (called by Debugg_MAR.f if internal witch DEBUGOK is ON)
+fillfiles1998.d/      | MAR - netcdf interface / fill   empty dates in netcdf files
+libUNd_f              | MAR - netcdf interface / double precision
+libUNs_f              | MAR - netcdf interface / simple precision
+NetCDF.inc            | MAR - netcdf interface / netcdf parameters
+netcdf                | netcdf sources and installation guide
+PBLtop.f              | computes  PBL  top                 from PBL             MAR variables
+SBCnew.GENERIC.f      | Additional MAR OUTPUT (surface and 
+                      |                        particular grid points containing observational data)
+                      | needs the data file AWSvou.dat (see the directory datMAR)
+                      | PLEASE ADAPT this routine to your problem 
+                      |              by completing its block data AWS_nc_DATA
+                      | USE restricted to nested 3-D Simulation (see $MARONH/CONFIG/Set-Up.MARONH.sh)
+SBCnew.2DKJump.f      | Additional MAR OUTPUT (surface and 
+                      |                        particular grid points containing observational data)
+                      | needs the data file AWSvou.dat (see the directory datMAR)
+                      | USE restricted to IAGO   2-D Simulation (see $MARONH/CONFIG/Set-Up.KaJump.sh)
+SBCnew.2DMtWav.f      | Analytical Solution of the Non-Linear Mountain Wave (2-D Case)
+sisvat.IO             | Additional OUTPUT in subroutine SISVAT 
+zext.f                | conversion logical (F,T) ---> integer(-1,1)

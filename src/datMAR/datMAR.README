@@ -1,0 +1,18 @@
+LIST of MAR "FIXED" INPUT Files:
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+-----------------+------------------------------------------------------------------------+-----------------------------------------
+FILE             | PURPOSE                                                                | USED in 
+-----------------+------------------------------------------------------------------------+-----------------------------------------
+MARctr.dat       | LIST of MAR  SWITCHES           (dx = 40 km, long sampling time = 6 h) | .main. program
+-----------------+------------------------------------------------------------------------+-----------------------------------------
+AWSvou.dat       | LIST of MAR    OUTPUT Variables  for a particular grid point           | subroutine AWS_nc in SBCnew.GENERIC.f
+MARgou.dat       | LIST of MAR    OUTPUT Variables (short sampling time: 0.5 h or so)     | subroutine ANI_nc in SBCnew.GENERIC.f
+MARvou.dat       | LIST of MAR    OUTPUT Variables (long  sampling time: 6.0 h or so)     | subroutine OUT_nc
+MARvou_ice.dat   | LIST of MAR    OUTPUT Variables (Ice Surface Mass Balance)
+NSTvou.dat       | LIST of NESTOR OUTPUT Variables
+-----------------+------------------------------------------------------------------------+-----------------------------------------
+MARinf.dat       |         MAR     INPUT DATA      (OLD "Mathusalem" radiative Scheme)    | subroutine infra
+MARs01.dat       |         MAR     INPUT DATA      (OLD "Mathusalem" radiative Scheme)    | subroutine solar
+MARs02.dat       |         MAR     INPUT DATA      (OLD "Mathusalem" radiative Scheme)    | subroutine solar
+-----------------+------------------------------------------------------------------------+-----------------------------------------

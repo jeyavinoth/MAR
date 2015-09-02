@@ -1,0 +1,11 @@
+Autres compléments demandés par Xavier:
+
+Profil biais vent V
+   implémentable dans VerP, mais il faudrait
+   tenir compte de la rotation
+   (vers. Xavier = dans MAPOST et sans rotation,
+   c'est trivial à faire dans VerP mais n'apporte 
+   pas grand chose)
+   
+   
+   

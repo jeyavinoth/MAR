@@ -1,0 +1,320 @@
+      subroutine Debugg_MAR(comment)
+
+C +----------------------------------------------------------------------------+
+C |                                                                15-Jun-2004 |
+C |   subroutine Debugg_MAR for OUTPUT of u*T* MAX, z0m MAX & MIN              |
+C |                                                                            |
+C +----------------------------------------------------------------------------+
+
+
+      IMPLICIT              none
+
+
+      include              'MARCTR.inc'
+      include              'MARdim.inc'
+      include              'MARgrd.inc'
+      include              'MARphy.inc'
+      include              'MAR_DY.inc'
+      include              'MAR_SL.inc'
+      character*10          comment,commen2
+
+      integer               n
+      integer               i__ver,j__ver,k__ver
+      integer               iutmax,jutmax,kutmax
+      integer               iz0max,jz0max,kz0max
+      integer               iz0min,jz0min,kz0min
+      integer               inoimx,jnoimx,knoimx
+      real                  ut_max
+      real                  z0_max
+      real                  z0_min
+      real                  duT_dt,Tnoise,Tnoimx
+
+
+      data                  i__ver,j__ver,k__ver
+     .                     /    69,    73,    01/
+
+
+      commen2 = comment
+
+
+            ut_max = 0.
+            iutmax = 0
+            jutmax = 0
+            kutmax = 0
+      DO k=1,mw
+      DO j=jp11,my1
+      DO i=ip11,mx1
+        IF (ut_max.LT.abs(SLutsl(i,j,k)))                           THEN
+            ut_max =  abs(SLutsl(i,j,k))
+            iutmax =             i
+            jutmax =               j
+            kutmax =                 k
+        END IF
+      ENDDO
+      ENDDO
+      ENDDO
+
+            z0_max = 0.
+            iz0max = 0
+            jz0max = 0
+            kz0max = 0
+      DO k=1,mw
+      DO j=jp11,my1
+      DO i=ip11,mx1
+        IF (z0_max.LT.abs(SL_z0 (i,j,k)))                           THEN
+            z0_max =  abs(SL_z0 (i,j,k))
+            iz0max =             i
+            jz0max =               j
+            kz0max =                 k
+        END IF
+      ENDDO
+      ENDDO
+      ENDDO
+
+            z0_min = 1.e9
+            iz0min = 0
+            jz0min = 0
+            kz0min = 0
+      DO k=1,mw
+      DO j=jp11,my1
+      DO i=ip11,mx1
+        IF (z0_min.GT.abs(SL_z0 (i,j,k)))                           THEN
+            z0_min =  abs(SL_z0 (i,j,k))
+            iz0min =             i
+            jz0min =               j
+            kz0min =                 k
+        END IF
+      ENDDO
+      ENDDO
+      ENDDO
+
+      DO k=1,mw
+      DO j=jp11,my1
+      DO i=ip11,mx1
+        Tnoise=    0.0
+      DO n=2,ntaver-1
+        duT_dt=abs(uT0aSL(i,j,k,n)
+     .       -0.5*(uT0aSL(i,j,k,n+1)+uT0aSL(i,j,k,n-1)))
+        Tnoise=    Tnoise           +duT_dt
+      ENDDO
+        IF (Tnoimx.LT.Tnoise)                                       THEN
+            Tnoimx =  Tnoise
+            inoimx =             i
+            jnoimx =               j
+            knoimx =                 k
+        ENDIF
+      ENDDO
+      ENDDO
+      ENDDO
+
+c #M5 IF (mod(itexpe,5).EQ.0)                                       THEN
+          write(6,6000) 
+ 6000     format(
+     .  /,
+     .    16x,   '------------+--------+-------+---------+---------+',
+     .  '----------+--------+----------------------+---------------+',
+     .  /,16x,   '   i   j  n | Ta     | u*    | u*T*    | u*q*    |',
+     .  ' u*s*     | Ts     | z0                   | r0            |',
+     .  /,16x,   '            | [K]    | [m/s] | [W/m2]  | [W/m2]  |',
+     .  ' [m/s]    | [K]    | [mm]                 | [mm]          |',
+     .  /,16x,   '            |        |       |         |         |',
+     .  '          |        | av     last   BS     | av     last   |',
+     .  /,16x,   '------------+--------+-------+---------+---------+',
+     .  '----------+--------+----------------------+---------------+')
+c #M5 END IF
+
+
+          write(6,6001) itexpe,commen2
+     .   ,              i__ver,j__ver,k__ver
+     .   ,       TairDY(i__ver,j__ver,mz    )
+     .   ,       SLuusl(i__ver,j__ver,k__ver)
+     .   ,    Cp*SLutsl(i__ver,j__ver,k__ver)
+     .   ,Lv_H2O*SLuqsl(i__ver,j__ver,k__ver)
+     .   ,       SLussl(i__ver,j__ver,k__ver)
+     .   ,       tsrfSL(i__ver,j__ver,k__ver)
+     .   ,1000. * SL_z0(i__ver,j__ver,k__ver)
+     .   ,1000. *SLn_z0(i__ver,j__ver,k__ver,ntavSL)
+     .   ,1000. *SLn_b0(i__ver,j__ver,k__ver,ntavSL)
+     .   ,1000. * SL_r0(i__ver,j__ver,k__ver)
+     .   ,1000. *SLn_r0(i__ver,j__ver,k__ver,ntavSL)
+     .   ,       isolSL(i__ver,j__ver)
+ 6001    format(i4,2x,a10,2i4,i3,' |',f7.2,' |', f6.3,' |',2(f8.1,' |'),
+     .                      f9.6,' |',f7.2,' |',3f7.3,' |', 2f7.3,' |' ,
+     .          i3)
+        IF (ntaver.LT.ntavSL)                                       THEN
+          write(6,6002)
+     .   (       u_0aSL(i__ver,j__ver,k__ver,n-ntavSL  +ntaver+1)
+     .   ,    Cp*uT0aSL(i__ver,j__ver,k__ver,n-ntavSL  +ntaver+1)
+     .   ,       us0aSL(i__ver,j__ver,k__ver,n-ntavSL  +ntaver+1)
+     .   ,1000. *SLn_z0(i__ver,j__ver,k__ver,n)
+     .   ,1000. *SLn_b0(i__ver,j__ver,k__ver,n)
+     .   ,1000. *SLn_r0(i__ver,j__ver,k__ver,n)
+     .   ,                                   n=ntavSL-1,ntavSL-ntaver,-1
+     .   )
+ 6002    format((4x,2x,10x, 8x,3x,' |', 7x ,' |', f6.3,' |',  f8.1,' |' 
+     .         ,                                               8x ,' |'
+     .         ,             f9.6,' |', 7x ,' |',  7x,2f7.3,' |'
+     .         ,                                   7x, f7.3,' |'))
+          write(6,6003)
+     .   (1000. *SLn_z0(i__ver,j__ver,k__ver,n)
+     .   ,1000. *SLn_b0(i__ver,j__ver,k__ver,n)
+     .   ,1000. *SLn_r0(i__ver,j__ver,k__ver,n)
+     .   ,                                   n=ntavSL  -ntaver-1,   1,-1
+     .   )
+ 6003    format((4x,2x,10x, 8x,3x,' |', 7x ,' |',  6x ,' |',2( 8x ,' |')
+     .         ,              9x ,' |', 7x ,' |',  7x,2f7.3,' |'
+     .         ,                                   7x, f7.3,' |'))
+        ELSE
+            stop "Debugg_MAR must be completed"
+        END IF
+
+
+      commen2 = '   uT* MAX'
+      IF (iutmax.NE.0.AND.jutmax.NE.0.AND.kutmax.NE.0)              THEN
+          write(6,6001) itexpe,commen2
+     .   ,              iutmax,jutmax,kutmax
+     .   ,       TairDY(iutmax,jutmax,mz    )
+     .   ,       SLuusl(iutmax,jutmax,kutmax)
+     .   ,    Cp*SLutsl(iutmax,jutmax,kutmax)
+     .   ,Lv_H2O*SLuqsl(iutmax,jutmax,kutmax)
+     .   ,       SLussl(iutmax,jutmax,kutmax)
+     .   ,       tsrfSL(iutmax,jutmax,kutmax)
+     .   ,1000. * SL_z0(iutmax,jutmax,kutmax)
+     .   ,1000. *SLn_z0(iutmax,jutmax,kutmax,ntavSL)
+     .   ,1000. *SLn_b0(iutmax,jutmax,kutmax,ntavSL)
+     .   ,1000. * SL_r0(iutmax,jutmax,kutmax)
+     .   ,1000. *SLn_r0(iutmax,jutmax,kutmax,ntavSL)
+     .   ,       isolSL(iutmax,jutmax)
+        IF (ntaver.LT.ntavSL)                                       THEN
+          write(6,6002)
+     .   (       u_0aSL(iutmax,jutmax,kutmax,n-ntavSL  +ntaver+1)
+     .   ,    Cp*uT0aSL(iutmax,jutmax,kutmax,n-ntavSL  +ntaver+1)
+     .   ,       us0aSL(iutmax,jutmax,kutmax,n-ntavSL  +ntaver+1)
+     .   ,1000. *SLn_z0(iutmax,jutmax,kutmax,n)
+     .   ,1000. *SLn_b0(iutmax,jutmax,kutmax,n)
+     .   ,1000. *SLn_r0(iutmax,jutmax,kutmax,n)
+     .   ,                                   n=ntavSL-1,ntavSL-ntaver,-1
+     .   )
+          write(6,6003)
+     .   (1000. *SLn_z0(iutmax,jutmax,kutmax,n)
+     .   ,1000. *SLn_b0(iutmax,jutmax,kutmax,n)
+     .   ,1000. *SLn_r0(iutmax,jutmax,kutmax,n)
+     .   ,                                   n=ntavSL  -ntaver-1,   1,-1
+     .   )
+        END IF
+      END IF
+
+
+      commen2 = '   z0  MAX'
+      IF (iz0max.NE.0.AND.jz0max.NE.0.AND.kz0max.NE.0)              THEN
+          write(6,6001) itexpe,commen2
+     .   ,              iz0max,jz0max,kz0max
+     .   ,       TairDY(iz0max,jz0max,mz    )
+     .   ,       SLuusl(iz0max,jz0max,kz0max)
+     .   ,    Cp*SLutsl(iz0max,jz0max,kz0max)
+     .   ,Lv_H2O*SLuqsl(iz0max,jz0max,kz0max)
+     .   ,       SLussl(iz0max,jz0max,kz0max)
+     .   ,       tsrfSL(iz0max,jz0max,kz0max)
+     .   ,1000. * SL_z0(iz0max,jz0max,kz0max)
+     .   ,1000. *SLn_z0(iz0max,jz0max,kz0max,ntavSL)
+     .   ,1000. *SLn_b0(iz0max,jz0max,kz0max,ntavSL)
+     .   ,1000. * SL_r0(iz0max,jz0max,kz0max)
+     .   ,1000. *SLn_r0(iz0max,jz0max,kz0max,ntavSL)
+     .   ,       isolSL(iz0max,jz0max)
+        IF (ntaver.LT.ntavSL)                                       THEN
+          write(6,6002)
+     .   (       u_0aSL(iz0max,jz0max,kz0max,n-ntavSL  +ntaver+1)
+     .   ,    Cp*uT0aSL(iz0max,jz0max,kz0max,n-ntavSL  +ntaver+1)
+     .   ,       us0aSL(iz0max,jz0max,kz0max,n-ntavSL  +ntaver+1)
+     .   ,1000. *SLn_z0(iz0max,jz0max,kz0max,n)
+     .   ,1000. *SLn_b0(iz0max,jz0max,kz0max,n)
+     .   ,1000. *SLn_r0(iz0max,jz0max,kz0max,n)
+     .   ,                                   n=ntavSL-1,ntavSL-ntaver,-1
+     .   )
+          write(6,6003)
+     .   (1000. *SLn_z0(iz0max,jz0max,kz0max,n)
+     .   ,1000. *SLn_b0(iz0max,jz0max,kz0max,n)
+     .   ,1000. *SLn_r0(iz0max,jz0max,kz0max,n)
+     .   ,                                   n=ntavSL  -ntaver-1,   1,-1
+     .   )
+        END IF
+      END IF
+
+
+      commen2 = '   z0  MIN'
+      IF (iz0min.NE.0.AND.jz0min.NE.0.AND.kz0min.NE.0)              THEN
+          write(6,6001) itexpe,commen2
+     .   ,              iz0min,jz0min,kz0min
+     .   ,       TairDY(iz0min,jz0min,mz    )
+     .   ,       SLuusl(iz0min,jz0min,kz0min)
+     .   ,    Cp*SLutsl(iz0min,jz0min,kz0min)
+     .   ,Lv_H2O*SLuqsl(iz0min,jz0min,kz0min)
+     .   ,       SLussl(iz0min,jz0min,kz0min)
+     .   ,       tsrfSL(iz0min,jz0min,kz0min)
+     .   ,1000. * SL_z0(iz0min,jz0min,kz0min)
+     .   ,1000. *SLn_z0(iz0min,jz0min,kz0min,ntavSL)
+     .   ,1000. *SLn_b0(iz0min,jz0min,kz0min,ntavSL)
+     .   ,1000. * SL_r0(iz0min,jz0min,kz0min)
+     .   ,1000. *SLn_r0(iz0min,jz0min,kz0min,ntavSL)
+     .   ,       isolSL(iz0min,jz0min)
+        IF (ntaver.LT.ntavSL)                                       THEN
+          write(6,6002)
+     .   (       u_0aSL(iz0min,jz0min,kz0min,n-ntavSL  +ntaver+1)
+     .   ,    Cp*uT0aSL(iz0min,jz0min,kz0min,n-ntavSL  +ntaver+1)
+     .   ,       us0aSL(iz0min,jz0min,kz0min,n-ntavSL  +ntaver+1)
+     .   ,1000. *SLn_z0(iz0min,jz0min,kz0min,n)
+     .   ,1000. *SLn_b0(iz0min,jz0min,kz0min,n)
+     .   ,1000. *SLn_r0(iz0min,jz0min,kz0min,n)
+     .   ,                                   n=ntavSL-1,ntavSL-ntaver,-1
+     .   )
+          write(6,6003)
+     .   (1000. *SLn_z0(iz0min,jz0min,kz0min,n)
+     .   ,1000. *SLn_b0(iz0min,jz0min,kz0min,n)
+     .   ,1000. *SLn_r0(iz0min,jz0min,kz0min,n)
+     .   ,                                   n=ntavSL  -ntaver-1,   1,-1
+     .   )
+        END IF
+      END IF
+
+
+      commen2 = '   NoiseMX'
+      IF (inoimx.NE.0.AND.jnoimx.NE.0.AND.knoimx.NE.0)              THEN
+          write(6,6001) itexpe,commen2
+     .   ,              inoimx,jnoimx,knoimx
+     .   ,       TairDY(inoimx,jnoimx,mz    )
+     .   ,       SLuusl(inoimx,jnoimx,knoimx)
+     .   ,    Cp*SLutsl(inoimx,jnoimx,knoimx)
+     .   ,Lv_H2O*SLuqsl(inoimx,jnoimx,knoimx)
+     .   ,       SLussl(inoimx,jnoimx,knoimx)
+     .   ,       tsrfSL(inoimx,jnoimx,knoimx)
+     .   ,1000. * SL_z0(inoimx,jnoimx,knoimx)
+     .   ,1000. *SLn_z0(inoimx,jnoimx,knoimx,ntavSL)
+     .   ,1000. *SLn_b0(inoimx,jnoimx,knoimx,ntavSL)
+     .   ,1000. * SL_r0(inoimx,jnoimx,knoimx)
+     .   ,1000. *SLn_r0(inoimx,jnoimx,knoimx,ntavSL)
+     .   ,       isolSL(inoimx,jnoimx)
+        IF (ntaver.LT.ntavSL)                                       THEN
+          write(6,6002)
+     .   (       u_0aSL(inoimx,jnoimx,knoimx,n-ntavSL  +ntaver+1)
+     .   ,    Cp*uT0aSL(inoimx,jnoimx,knoimx,n-ntavSL  +ntaver+1)
+     .   ,       us0aSL(inoimx,jnoimx,knoimx,n-ntavSL  +ntaver+1)
+     .   ,1000. *SLn_z0(inoimx,jnoimx,knoimx,n)
+     .   ,1000. *SLn_b0(inoimx,jnoimx,knoimx,n)
+     .   ,1000. *SLn_r0(inoimx,jnoimx,knoimx,n)
+     .   ,                                   n=ntavSL-1,ntavSL-ntaver,-1
+     .   )
+          write(6,6003)
+     .   (1000. *SLn_z0(inoimx,jnoimx,knoimx,n)
+     .   ,1000. *SLn_b0(inoimx,jnoimx,knoimx,n)
+     .   ,1000. *SLn_r0(inoimx,jnoimx,knoimx,n)
+     .   ,                                   n=ntavSL  -ntaver-1,   1,-1
+     .   )
+        END IF
+      END IF
+
+
+          write(6,*) ' '
+
+
+      return
+      end

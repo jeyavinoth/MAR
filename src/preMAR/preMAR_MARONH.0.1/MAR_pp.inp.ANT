@@ -1,0 +1,38 @@
+#DA  |   DYNAMICS: Lateral BC: Davies (1976) BC on Wind // Lat.B. 
+#VN  |   DYNAMICS: Variable Number of Leap-Frog Loops (Fast Waves)
+#LB  |   DYNAMICS: Leap-Frog Backward Advection 4th Scheme        
+#lb  |   DYNAMICS: Leap-Frog Backward Advection 4th Scheme NO Vec.
+#RF  |   DYNAMICS: Top BC: Rayleight Friction in the Top Sponge   
+#HY  |   Explicit Cloud MICROPHYSICS              may be turned ON
+#HV  |   Explicit Cloud MICROPHYSICS: Air Loading by Hydrometeors 
+#HW  |   Explicit Cloud MICROPHYSICS: Full OUTPUT of Hydrometeors 
+#hy  |   Explicit Cloud MICROPHYSICS: NO Vectorisation Optmization
+#NV  |   PORTABILITY: Vectorization  is     turned  OFF           
+#KA  |   TURBULENCE: T.K.E. & e(T.K.E.) Filter along the vertical 
+#TA  |   TURBULENCE: K-e: Dissipation + Advect.Horiz.TKE Transport
+#TD  |   TURBULENCE: K-e: Dissipation + Diffus.Horiz.TKE Transport
+#KC  |   TURBULENCE: T.K.E.(mz1) := T.K.E.(mz)                    
+#ZS  |   SBL: Mom.: Roughn.Length= F(u*) Chamberlain (1983),  Sea 
+#CA  |   CONVECTIVE  Adjustment (general                 Set Up)  
+#PB  |   CONVECTIVE  Adjustment (Peter Bechtold     2000 Set Up)  
+#ca  |   CONVECTIVE  Adjustment (no Vector               Set Up)NV
+#pb  |   CONVECTIVE  Adjustment (Peter Bechtold     2000 Set Up)NV
+#EE  |   PHYSICS: radCEP: ECMWF   routine    (cfr. JJ Morcrette)  
+#sa  |   SISVAT: Stand Alone Set Up is turned OFF                 
+#TV  |   Soil /Vegetation Variables                  are used     
+#SN  |   SNOW Model                               may be turned ON
+#SI  |   SISVAT: Sea-Ice Fraction calculated from prescribed SST  
+#IP  |   SISVAT: Sea-Ice Fraction prescribed from SMMR and SSM/I  
+#LN  |   Soil /Vegetation Model: LAI(x,y,t) prescribed(MARglf.DAT)
+#IB  |   OUTPUT: Ice-Sheet Surface Mass Balance  (on MARphy File )
+#AE  |   TURBULENCE: Aerosols Erosion / Turbulent Diffusion Coeff.
+#BS  |   Explicit Cloud MICROPHYSICS: Blow. *(Snow)         Model 
+#SS  |   Explicit Cloud MICROPHYSICS: Blow. *(Snow)  Linear Model 
+#HS  |   SNOW Model: Hardened SNOW Pack Initialization            
+#EM  |   Explicit Cloud MICROPHYSICS: de Montmollin Parameterizat.
+#ZN  |   SBL: Mom.: Roughn.Length= F(u*)                     Snow 
+#RN  |   SBL: Heat: Roughn.Length= F(u*,z0)  Andreas (1987)  Snow 
+#SB  |   Surface Boundary: modified externally (from Campain Data)
+#ID  |   OUTPUT: Main Dependant Variables        (on NetCDF File )
+#UL  |   OUTPUT: Time Dimension is UNLIMITED     (on NetCDF File )
+#HP  |   PORTABILITY: Enables use of own    library on Linux Syst 

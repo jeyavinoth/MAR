@@ -1,0 +1,216 @@
+      subroutine ADV_2D (ntSlow,dtSlow,dt,dx,dy,U_wind,V_wind,ff)
+C +
+C +------------------------------------------------------------------------+
+C | MAR DYNAMICS   SLOW                                    15-01-2002  MAR |
+C |   SubRoutine ADVlfb solves Advection by LeapFrog Backward Scheme       |
+C |                                                                        |
+C +------------------------------------------------------------------------+
+C |                                                                        |
+C |   INPUT/        ntSlow          : Time      Step Counter Maximum Value |
+C |   ^^^^^^                                                               |
+C |                                                                        |
+C |   INPUT/   (via common block)                                          |
+C |   ^^^^^^        iterun          : Long Time Step Counter               |
+C |                 dt              : Time Step                            |
+C |                 U_wind(mx,my,mz): Advection Vector: x-----Direction    |
+C |                 V_wind(mx,my,mz): Advection Vector: y-----Direction    |
+C |                                                                        |
+C |   INPUT/            ff(mx,my,mz): Advected  Variable                   |
+C |   OUTPUT                                                               |
+C |   ^^^^^^                                                               |
+C |                                                                        |
+C |   METHOD:  2th order accurate Time       Scheme (leapfrog backw.) .AND.|
+C |   ^^^^^^   4th order accurate Horizontal Scheme on Arakawa A grid      |
+C |            2th order          Vertical   Scheme                        |
+C |                                                                        |
+C |   CAUTION: This routine must be used                                   |
+C |   ^^^^^^^  with a positive  definite restoring Procedure               |
+C |            for    positive  definite Variables                         |
+C |           (Such a Procedure is set up after digital filtering in MAR)  |
+C |                                                                        |
+C |   REFER.:  Use of  A grid: Purser   & Leslie,   1988, MWR 116, p.2069  |
+C |   ^^^^^^   Time    Scheme: Haltiner & Williams, 1980, 5-2,     p.152   |
+C |            Spatial Scheme: Haltiner & Williams, 1980, 5-6-5,   p.135   |
+C |                                                                        |
+C +------------------------------------------------------------------------+
+C +
+C +
+      IMPLICIT NONE
+C +
+C +
+C +--Global Variables
+C +  ================
+C +
+C +
+      include 'NSTdim.inc'
+C +
+C +
+C +--Local  Variables
+C +  ================
+C +
+      integer  ntSlow                ! Time Step Counter Maximum Value
+      real     dtSlow                ! Time Step
+      real     dt                    ! Time Step of the Model
+      integer  itSlow                ! Time Step Counter
+      real     ffm1                  ! Advected  Variable (t=n-1)
+      real     ffp1(mx,my)           ! Advected  Variable (t=n+1)
+      real     dff                   ! Variable  Increment
+      real     ff(mx,my)             ! Advected  Variable (t=n)
+      real     U_wind(mx,my),V_wind(mx,my)
+C +
+      integer  i,j,k,ip11,jp11,
+     .         im10,ip10,jm10,jp10,
+     .         im20,ip20,jm20,jp20,
+     .         im1(mx),ip1(mx),im2(mx),ip2(mx),
+     .         jm1(my),jp1(my),jm2(my),jp2(my)
+C +
+      parameter (ip11=2,jp11=2)
+C +
+      real     summ,sumn,zero,fac43,dx,dy,dxinv2,dyinv2
+C +
+      logical  staggr
+C +
+      zero  = 0.d0
+      fac43 = 4.d0/3.d0
+C +
+C +
+C +--Parameters
+C +  ==========
+C +
+      staggr = .true.
+C +
+C +
+C +--Boundaries Masks
+C +  ================
+C +
+      DO i=1,mx
+         im10   =     i-1
+         ip10   =     i+1
+         im1(i) = max(im10, 1)
+         ip1(i) = min(ip10,mx)
+         im20   =     i-2
+         ip20   =     i+2
+         im2(i) = max(im20, 1)
+         ip2(i) = min(ip20,mx)
+      END DO
+C +
+      DO j=1,my
+         jm10   =     j-1
+         jp10   =     j+1
+         jm1(j) = max(jm10, 1)
+         jp1(j) = min(jp10,my)
+         jm20   =     j-2
+         jp20   =     j+2
+         jm2(j) = max(jm20, 1)
+         jp2(j) = min(jp20,my)
+      END DO
+C +
+C +
+C +--Horizontal discretisation
+C +  =========================
+C +
+      dxinv2 = 0.5d0 / dx
+      dyinv2 = 0.5d0 / dy
+C +
+C +
+C +--Start the Leapfrog Backward Scheme                                ! CTR
+C +  ==================================
+C +
+      dtSlow = dt / (ntSlow+1)
+C +
+C +
+C +--Start Leap-Frog Backward
+C +  ========================
+C +
+      DO  itSlow =  1 ,  ntSlow+1
+C +
+C +
+C +--Mass Divergence                                                   ! CTR
+C +  ===============
+C +
+c         DO  j=1,my
+c         DO  i=1,mx
+C +
+C +--4th centered Differences / x-----Direction                        ! CTR
+C +  ------------------------------------------
+C +
+c           WKxyz1(i,j)=  U_wind(i,j)*dxinv2 * fac43  *  (
+c    .        0.125d0*(ff(ip2(i),j)-ff(im2(i),j))
+c    .                -ff(ip1(i),j)+ff(im1(i),j) )
+C +
+C +--4th centered Differences / y-----Direction                        ! CTR
+C +  ------------------------------------------
+C +
+c           WKxyz2(i,j)=  V_wind(i,j)*dyinv2 * fac43  *  (
+c    .        0.125d0*(ff(i,jp2(j))-ff(i,jm2(j)))
+c    .                -ff(i,jp1(j))+ff(i,jm1(j)) )
+C +
+c         END DO
+c         END DO
+C +
+C +
+C +--2th centered Differences  / sigma-Direction  / Energy conserving  ! CTR
+C +  --- (Haltiner and Williams, 1980, 7.2.2, Eqn. (7-47b) p.220) ---
+C +      --------------------------------------------------------
+C +
+C +
+C +--Mass Update (Leapfrog-Backward)                                   ! CTR
+C +  ===============================
+C +
+        IF  (itSlow.eq.1)                                           THEN ! CTR
+            DO j=jp11,my-1
+            DO i=ip11,mx-1
+               dff         =(
+     .                      U_wind(i,j)*dxinv2 * fac43  *  (
+     .        0.125d0*(ff(ip2(i),j)-ff(im2(i),j))
+     .                -ff(ip1(i),j)+ff(im1(i),j) )
+     .                     +V_wind(i,j)*dyinv2 * fac43  *  (
+     .        0.125d0*(ff(i,jp2(j))-ff(i,jm2(j)))
+     .                -ff(i,jp1(j))+ff(i,jm1(j)) )  )
+     .                      *dtSlow
+                ff(i,j)    =     ff(i,j) + dff
+              ffp1(i,j)    =     ff(i,j) + dff + dff
+            END DO
+            END DO
+        ELSE                                                             ! CTR
+          IF (itSlow.le.ntSlow)                                     THEN ! CTR
+            DO j=jp11,my-1
+            DO i=ip11,mx-1
+               dff         =(
+     .                      U_wind(i,j)*dxinv2 * fac43  *  (
+     .        0.125d0*(ff(ip2(i),j)-ff(im2(i),j))
+     .                -ff(ip1(i),j)+ff(im1(i),j) )
+     .                     +V_wind(i,j)*dyinv2 * fac43  *  (
+     .        0.125d0*(ff(i,jp2(j))-ff(i,jm2(j)))
+     .                -ff(i,jp1(j))+ff(i,jm1(j)) )   )
+     .                      *dtSlow
+              ffm1         =     ff(i,j)
+                ff(i,j)    =   ffp1(i,j)
+              ffp1(i,j)    =   ffm1        + dff + dff
+            END DO
+            END DO
+          ELSE                                                           ! CTR
+            DO j=jp11,my-1
+            DO i=ip11,mx-1
+               dff         =(
+     .                      U_wind(i,j)*dxinv2 * fac43  *  (
+     .        0.125d0*(ff(ip2(i),j)-ff(im2(i),j))
+     .                -ff(ip1(i),j)+ff(im1(i),j) )
+     .                     +V_wind(i,j)*dyinv2 * fac43  *  (
+     .        0.125d0*(ff(i,jp2(j))-ff(i,jm2(j)))
+     .                -ff(i,jp1(j))+ff(i,jm1(j)) )   )
+     .                      *dtSlow
+                ff(i,j)    =     ff(i,j) + dff
+            END DO
+            END DO
+C +***      Leapfrog-Backward (e.g. Haltiner and Williams, p.152)
+C +
+          END IF                                                         ! CTR
+        END IF                                                           ! CTR
+C +
+C +
+      END DO
+C +
+C +
+      return
+      end

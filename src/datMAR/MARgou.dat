@@ -1,0 +1,47 @@
+#---*--------*--------*--------*--------*--------*-----------*---------------------------MAR(NetCDF/IDL)-+
+#    Variable ---------Dimensions---------------- Unites      Nom complet (description)
+#---*--------1--------2--------3--------4--------*-----------*-------------------------------------------+
+    year     -        -        -        time     YYYY        Date, as year
+    date     -        -        -        time     MMDDHH      Date, as month(MM), day(DD), hour(HH)
+    lon      x        y        -        -        degrees     Longitude
+    lat      x        y        -        -        degrees     Latitude
+    sh       x        y        -        -        m           Surface Height 
+    isol     x        y        -        -        -           Surface Type                         
+    pstar    x        y        -        time     kPa         MAR Pressure Thickness               
+    zz_SBL   x        y        level    time     m           SBL geopotential
+    Ta_SBL   x        y        level    time     K           SBL Temperature
+    ua_SBL   x        y        level    time     m/s         SBL x-Wind Speed component
+    va_SBL   x        y        level    time     m/s         SBL y-Wind Speed component
+    Ta_SRF   x        y        -        time     K           Surface Air Temperature
+    H__Sen   x        y        -        time     W/m2        Sensible Heat Flux
+    H__Lat   x        y        -        time     W/m2        Latent Heat Flux
+    SL_wge   x        y        -        time     m/s         Wind Gust Estimate
+#   SLlwge   x        y        -        time     m/s         Lower bound on Wind Gust Estimate
+#   SLuwge   x        y        -        time     m/s         Upper bound on Wind Gust Estimate
+    Snow     x        y        -        time     m(water)    Total Snow over last Time Interval
+    RadOLR   x        y        -        time     W/m2        Outgoing Longwave Radiation 
+    Clouds   x        y        -        time     -           Cloud Fraction                               
+    OptDep   x        y        -        time     -           Cloud Optical Depth
+    RadSol   x        y        -        time     W/m2        Soil Downward Shortwave Radiation
+    Rad_IR   x        y        -        time     W/m2        Soil Downward .Longwave Radiation
+    Albedo   x        y        -        time     -           Surface Albedo
+    mosaic   x        y        sector   time     -           Mosaic Fraction
+    T_Surf   x        y        sector   time     K           Mosaic Surface Temperature
+    utstar   x        y        sector   time     K.m/s       Mosaic Surface Temperature Turbulent Flux
+    uqstar   x        y        sector   time     kg/kg.m/s   Mosaic Surface Water Vapor Turbulent Flux
+    usstar   x        y        sector   time     kg/kg.m/s   Mosaic Surface Blown Snow. Turbulent Flux
+    IntROF   x        y        -        time     mmWE        Time Integrated Water Run OFF
+    IntEVA   x        y        -        time     mmWE        Time Integrated Evapotranspiration
+    VIntWA   x        y        -        time     mmWE        Vertically Integrated Liquid Water
+#   TNoisT   x        y        -        time     K           Temperature Numerical Noise (Model Top)
+#   TNoisS   x        y        -        time     K           Temperature Numerical Noise (Model SBL)
+# 
+#Remarks:                    
+#--------
+#
+# -1- Put characters (#) into the first 4 rows if you don't want the variable in the output
+# 
+# -2- Defined dimensions are: x and y, 
+#                             level    = main sigma levels k
+#                             level2   =      sigma levels k+1/2
+#                             sector   = subgrid surface types                        

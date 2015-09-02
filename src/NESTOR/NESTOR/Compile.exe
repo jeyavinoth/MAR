@@ -1,0 +1,121 @@
+#!/bin/bash
+##!/bin/ksh (no colors)
+# XF, 20/02/04
+#######################################
+
+#   SuSE Linux 8.2 (gcc 3.2)
+#   ------------------------
+
+#    f77="f77"
+#     o1="-w -O3 -finit-local-zero"
+#     o2="-lnetcdf"
+# netcdf="/usr/include/netcdf.inc"
+
+#   SuSE Linux 8.2 (ifc 7.1)
+#   ------------------------
+
+#    f77="ifc"
+#     o1="-w -zero -O3" # -tpp7 -axW -xW don't work with PRCout
+#     o2="-lnetcdfifc -lf2c_ifc"
+# netcdf="/usr/include/netcdf.inc"
+
+#   SuSE Linux 9.0 (ifc 8.0)
+#   ------------------------
+
+     f77="ifort"
+      o1="-w -zero -vec_report0"
+      o2="-lnetcdf_ifort"
+  netcdf="/usr/include/netcdf.inc"
+
+#   IRIX64 6.5 (rhodes)
+#   -------------------
+
+#    f77="f90"
+#     o1="-w -i8 -r8 -OPT:Olimit=3821 -O2"
+#     o2="/usr/local/pub/lib64/netcdf-3.4/libnetcdf_i8_r8.a"
+# netcdf="/usr/local/pub/include/netcdf.inc"
+
+#   DEC OSF1 V5.1 alpha
+#   -------------------
+
+#    f77="f90"
+#     o1="-O4 -tune ev67 -arch ev67"
+#     o2="/usr/local/netcdf/lib/libnetcdf.a"
+# netcdf="/opt/netcdf/include/netcdf.inc" 
+
+# Output MAR in double precision with NESTOR in simple precision 
+# to no have problem with input netcdf on DEC alpha e.g.   
+
+  color=y
+
+  Version="4.1.8"
+
+#######################################
+
+if  [ $color = "y" ] ; then
+
+E="-e"
+Rl="\E[31;1m" ; Rd="\E[31;2m" # red
+Yl="\E[33;1m" ; Yd="\E[33;2m" # yellow
+Gl="\E[32;1m" ; Gd="\E[32;2m" # green
+Bl="\E[34;1m" ; Bd="\E[34;2m" # blue
+W="\E[39;1m"  ; D="\E[0m"     # white/dark
+C="\E[36;1m"                  # cyan
+M="\E[35;1m"                  # magenta
+
+# WARNING: Don't work with /bin/ksh
+
+fi
+
+
+echo $E " "
+echo $E "${Rl}   NESTOR ${Yl}${Version}${D}"
+echo $E "${Bl}  --------------${D}"
+echo $E " "
+echo $E " ${Bl}Compilator     : ${M}$f77${D}"
+echo $E " ${Bl}Option for $f77 : ${M}$o1${D}"
+echo $E " ${Bl}NetCDF.inc     : ${M}$netcdf${D}"  
+echo $E " "
+
+cd src
+
+echo "      INCLUDE '$netcdf'" > NetCDF.inc
+
+rm -f *.o
+
+for  File in *.f ; do
+ 
+ case ${#File} in
+  (5)  f1=$File"   " ;;
+  (6)  f1=$File"  "  ;;
+  (7)  f1=$File" "   ;;
+  (8)  f1=$File      ;;
+ esac
+
+ $f77 $o1 -c $File
+
+ if [ $? -ne 0 ] ; then
+  echo $E " $f1 [${Rl}ERROR${D}]"
+  exit
+ else 
+  echo $E " $f1  [${Gl} OK ${D}]"
+ fi
+ 
+done
+
+rm -f        ../NESTOR.exe
+$f77 $o1  -o ../NESTOR.exe    *.o $o2
+
+cd ..
+
+if [ -f NESTOR.exe ] ; then
+ echo $E " "
+ echo $E "${Yd} Compilation of NESTOR $Version: ${Gl}OK${D}"
+ echo $E " "
+else
+ echo $E " "
+ echo $E "${Yd} Compilation of NESTOR $Version: ${Rl}ERROR${D}"
+ echo $E " "
+fi
+
+exit

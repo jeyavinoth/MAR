@@ -1,0 +1,88 @@
+*************************************************************************
+*****************  CONTROL FILE FOR NESTOR PROGRAM  *********************
+*************************************************************************
+                                                                         
+-------------------------------------------------------------------------
+------------------------| NESTOR CONFIGURATION                          |
+1                       | - 1 = Nesting field computation               |
+                        | - 2 = Rain disagregation                      |
+                        | - 3 = Wind gust estimate                      |
+-------------------------------------------------------------------------
+GRD                     | Label experience                           (a3)
+------------------------+-----------------------------------+------------
+Output/                                                     | Output path
+------------------------+-----------------------------------+------------
+E40                     | Large-scale model, e.g. E15, E40           (a3)
+------------------------|------------------------------------------------
+MAR                     | Nested model, e.g. MAR, M2D, GRA, CPL      (a3)
+------------------------|------------------------------------------------
+GRD                     | Region .e.g. AFW,ANT,EUR,GRD               (a3)
+------------------------|------------------------------------------------
+1991,05,01,00           | DATE of RUN START                 (YY,mm,dd,hh)
+        00,06           | RUN LENGHT                              (dd,hh)
+           06           | Time interval between two forcings         (hh)
+------------------------|------------------------------------------------
+------------------------| OUTPUT :                                       
+T                       | - initial/forcing files  (*.DAT)          (F/T)
+F                       | - ASCII format init./for. files (MAR only)(F/T)
+T                       | - graphic check file     (NST*.nc)        (F/T)
+------------------------|------------------------------------------------
+T                       | Spherical     coordinates for LSC grid    (F/T)
+------------------------|------------------------------------------------
+1                       | Horizontal interpol. type    (1=bilin, 3=bicub)
+------------------------|------------------------------------------------
+1                       | Vertical   interpol. type    (1=linear,3=cubic)
+------------------------|------------------------------------------------
+------------------------| TOPOGRAPHY SOURCE :                            
+T                       | - ETOPO data set  (resol. : 5 minutes  )  (F/T)
+F                       | - GTOPO data set  (resol. : 30 secondes)  (F/T)
+------------------------|------------------------------------------------
+------------------------| TOPOGRAPHY TREATMENT :                        |
+F                       | - border of constant topography at boundaries |
+F                       | - imposed LSC topography in the const. border |
+F                       | - imposed LSC topography in the whole domain  |
+F                       | - zero topography        in the const. border |
+T                       | - filtering of topography                     |
+------------------------|------------------------------------------------
+------------------------| CORRECTION APPLIED TO METEO. FIELDS :          
+F                       | - 600-hPa geopotential height             (F/T)
+T                       | - mixed surface layer                     (F/T)
+------------------------|------------------------------------------------
+------------------------| ROUGHNESS LENGHT :                             
+F                       | Computed from land use datasets           (T/F)
+------------------------|------------------------------------------------
+------------------------| VEGETATION COVER :                             
+T                       | - Global land cover (IGBP)                (T/F)
+F                       | - European land cover (Corine) : Europe   (T/F)
+F                       | - Vegetation of Belgium (V.d.Auwera-IRM)  (T/F)
+------------------------|------------------------------------------------
+------------------------| VEGETATION FRACTION (select max. one option) : 
+F                       | - Correction with NDVI index (res. 1 km)  (T/F)
+F                       | - Correction with NDVI index (res. 8 km)  (T/F)
+------------------------|------------------------------------------------
+------------------------| SOIL MODEL :                                   
+T                       | De Ridder and Schayes (1997) soil model   (T/F)
+40.                     | Imposed soil wetness in all layers (0 to 100 %)
+T                       | Soil wetness from ECMWF fields            (T/F)
+------------------------|------------------------------------------------
+------------------------| SEA SURFACE TEMPERATURE :                      
+F                       | Imposed Reynolds sea surface temperature  (T/F)
+------------------------|------------------------------------------------
+------------------------| SOUNDING                                       
+F                       | Simplified initialisation with sounding   (T/F)
+------------------------+---------------------------------+--------------
+/Input                                                    | Sounding file
+------------------------+---------------------------------+--------------
+------------------------| CLOUD MICROPHYSICS                             
+F                       | Include cloud content in spec. humidity   (T/F)
+------------------------|------------------------------------------------
+------------------------| RAIN DISAGGREGATION                            
+0                       | 0 = no rain disaggregation (only model fields) 
+                        | 1 = disaggregation model of Sinclair (1994)    
+                        | 2 = disaggregation model of Alpert   (1989)    
+-------------------------------------------------------------------------
+------------------------| WIND GUST ESTIMATE METHOD                      
+1                       | 1 = Standard WGE method of Brasseur (2001)     
+                        | 2 = BRN method (without TKE) of Ramel (2001)   
+                        | 3 = Ratio method                               
+-------------------------------------------------------------------------

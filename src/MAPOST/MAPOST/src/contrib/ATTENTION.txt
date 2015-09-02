@@ -1,0 +1,5 @@
+Ce rép. contient des mofis faites
+par Xavier Fettweis, mais ce n'est pas
+fiable dans l'état actuel pcq l'interpolation
+des données large-scale pour les "stations"
+est assez franchement mauvaise.

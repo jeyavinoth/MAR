@@ -1,0 +1,45 @@
+How to Set-Up the ECMWF radiative transfert scheme in MAR (ex. here: simulation ANT, see Set-Up.ANTarc.sh)
+
+Copy radCEP.d from forMAR on your work directory          (ex. here: ANTdir/), 
+
+Compile the ECMWF radiative transfert scheme (ex. here: vector(ization) length: 256, 33 levels, ifc compiler, P4 optimization):
+ ./radCEP.sh 256 33 ifc P4 
+   This generates the subdirectory radCEP_256_33.difc_P4/ in the parent directory
+   Note that the values of the variables (256 33  ifc P4) are included in the label of  this new directory. 
+** CAUTION: because of memory requirements, it is better to perform this compilation on a computer having more than 1 Gb RAM **
+
+The compilation of radCEP on the NEC SX5 may be done using the shell    radCEP.sh, 
+                        which may be submitted in an xterm windown (see  xterm.qsub) 
+                                            or as a  batch         (see radCEP.qsub)
+
+Prepare an access to radCEP for the re-compilation of MAR
+   ln -s radCEP_256_33.difc_P4 radCEP.dP4
+
+Compile the code of MAR with the same options as used for compiling radCEP:
+    compile: 
+    ./MAR_fc.x (ifc compiler, P4 optimization here, in order to be consistant with the compilation of radCEP)
+    The executable "MAR" is generated
+
+REMARK: the compiler sxf90 on NEC SX5 can compile the splitted version only;
+^^^^^^^ the original non splitted version requires a large RAM. It can be compiled with 
+          f90   (true unix)
+          pgf90 (pay attention to memory requirements)
+          ifc   (large memory necessary, otherwise the compiler or even the system blows up)
+        in this case lets modify the value of the variable SPLT in the shell radCEP.sh (new value: SPLIT) 
+
+
+
+HOW TO CHANGE THE VERTICAL DIMENSIONS
+-------------------------------------
+
+There are 600 levels in the standard version
+To increase the number of levels until e.g., 3000, please modify: 
+
+module.d_1/yoecld.F90:REAL_B :: CETA(600)               --> module.d_1/yoecld.F90:REAL_B :: CETA(3000)
+
+module.d_1/yoeaerd.F90:REAL_B :: CVDAES(601)            --> module.d_1/yoeaerd.F90:REAL_B :: CVDAES(3001)
+module.d_1/yoeaerd.F90:REAL_B :: CVDAEL(601)            --> module.d_1/yoeaerd.F90:REAL_B :: CVDAEL(3001)
+module.d_1/yoeaerd.F90:REAL_B :: CVDAEU(601)            --> module.d_1/yoeaerd.F90:REAL_B :: CVDAEU(3001)
+module.d_1/yoeaerd.F90:REAL_B :: CVDAED(601)            --> module.d_1/yoeaerd.F90:REAL_B :: CVDAED(3001)
+
+module.d_1/yoeovlp.F90:REAL_B :: RA1OVLP(601)           --> module.d_1/yoeovlp.F90:REAL_B :: RA1OVLP(3001)

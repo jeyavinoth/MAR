@@ -1,0 +1,222 @@
+#! /bin/sh
+  heure=`echo 1200`
+  heur4=`echo 1115`
+  heur3=`echo 1110`
+  heur2=`echo 1105`
+  heur1=`echo 1100`
+  heur0=`echo 1000`
+  heurd=`echo 0900`
+  damin=`echo 20`
+#
+  datey=`date +%y`
+  datem=`date +%m`
+  dated=`date +%d`
+#
+  zero0=`echo 0`
+#
+     echo $dated
+  if expr $dated \<= $damin
+  then
+     echo $dated
+     echo $damin
+     echo "++++++++++++++++++++++++++++"
+               dated=`expr $damin`
+               datem=`expr $datem - 1`
+     if  expr $datem \< 10
+     then
+               datem=`echo $zero0$datem`
+     fi
+#
+     if  expr $datem = 0
+     then
+               datem=12
+                 datey=`expr $datey - 1`
+       if  expr $datey \< 10
+       then
+                 datey=`echo $zero0$datey`
+       fi
+     fi
+  fi
+#
+  dateT=`echo $datem$dated$heure$datey`
+#        echo $dateT
+        touch $dateT ++++++++++++++++
+#
+##########################################
+#
+        touch setdat
+#
+#######################################
+#
+               dated=`expr $dated - 1`
+  if     expr $dated \< 10
+  then
+               dated=`echo $zero0$dated`
+  fi
+#
+  if     expr $dated = 0
+  then
+               dated=30
+#
+               datem=`expr $datem - 1`
+     if  expr $datem \< 10
+     then
+               datem=`echo $zero0$datem`
+     fi
+#
+     if  expr $datem = 0
+     then
+               datem=12
+                 datey=`expr $datey - 1`
+                 datey=`expr $datey - 1`
+       if  expr $datey \< 10
+       then
+                 datey=`echo $zero0$datey`
+       fi
+     fi
+#
+  fi
+#
+  dateT=`echo $datem$dated$heure$datey`
+         echo $dateT
+        touch $dateT INSTALL
+# cp                 INSTALL ../.
+#
+##########################################
+#
+               dated=`expr $dated - 1`
+  if     expr $dated \< 10
+  then
+               dated=`echo $zero0$dated`
+  fi
+#
+  if     expr $dated = 0
+  then
+               dated=30
+#
+               datem=`expr $datem - 1`
+     if  expr $datem \< 10
+     then
+               datem=`echo $zero0$datem`
+     fi
+#
+     if  expr $datem = 0
+     then
+               datem=12
+                 datey=`expr $datey - 1`
+                 datey=`expr $datey - 1`
+       if  expr $datey \< 10
+       then
+                 datey=`echo $zero0$datey`
+       fi
+     fi
+#
+  fi
+#
+  dateT=`echo $datem$dated$heur4$datey`
+         echo $dateT
+        touch $dateT MAR_pp-Intel.x
+#
+  dateT=`echo $datem$dated$heur3$datey`
+         echo $dateT
+        touch $dateT MAR_pp-Mirag.x
+#
+  dateT=`echo $datem$dated$heur2$datey`
+         echo $dateT
+        touch $dateT MAR_pp-Intel
+#
+  dateT=`echo $datem$dated$heur1$datey`
+         echo $dateT
+        touch $dateT MAR_pp-Alpha
+#
+  dateT=`echo $datem$dated$heur0$datey`
+         echo $dateT
+        touch $dateT MAR_pp.f
+#
+  dateT=`echo $datem$dated$heurd$datey`
+         echo $dateT
+        touch $dateT MAR_pp.inp
+#
+##########################################
+#
+               dated=`expr $dated - 1`
+  if     expr $dated \< 10
+  then
+               dated=`echo $zero0$dated`
+  fi
+#
+  if     expr $dated = 0
+  then
+               dated=30
+#
+               datem=`expr $datem - 1`
+     if  expr $datem \< 10
+     then
+               datem=`echo $zero0$datem`
+     fi
+#
+     if  expr $datem = 0
+     then
+               datem=12
+                 datey=`expr $datey - 1`
+                 datey=`expr $datey - 1`
+       if  expr $datey \< 10
+       then
+                 datey=`echo $zero0$datey`
+       fi
+     fi
+#
+  fi
+#
+  dateT=`echo $datem$dated$heure$datey`
+         echo $dateT
+        touch $dateT VERcod-Intel.x
+#
+  dateT=`echo $datem$dated$heur2$datey`
+         echo $dateT
+        touch $dateT VERcod-Intel
+#
+  dateT=`echo $datem$dated$heur1$datey`
+         echo $dateT
+        touch $dateT VERcod-Alpha
+#
+  dateT=`echo $datem$dated$heur0$datey`
+         echo $dateT
+        touch $dateT VERcod.f
+#
+##########################################
+#
+               dated=`expr $dated - 1`
+  if     expr $dated \< 10
+  then
+               dated=`echo $zero0$dated`
+  fi
+#
+  if     expr $dated = 0
+  then
+               dated=30
+#
+               datem=`expr $datem - 1`
+     if  expr $datem \< 10
+     then
+               datem=`echo $zero0$datem`
+     fi
+#
+     if  expr $datem = 0
+     then
+               datem=12
+                 datey=`expr $datey - 1`
+                 datey=`expr $datey - 1`
+       if  expr $datey \< 10
+       then
+                 datey=`echo $zero0$datey`
+       fi
+     fi
+#
+  fi
+#
+  dateT=`echo $datem$dated$heure$datey`
+         echo $dateT
+        touch $dateT netcdf.inc
+#
+##########################################

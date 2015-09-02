@@ -1,0 +1,37 @@
+>SOLTYP: 0   !Accept all soil types
+>REGNUM: 1   ! Northern part of domain
+ 54.0    2.0
+ 61.5   22.0
+>REGNUM: 2   ! Germany, Switzerland...
+ 48.5   2.0
+ 54.0   20.0
+>REGNUM: 3   ! UK, Ireland...
+ 50.0  -10.5
+ 60.0    2.0
+>REGNUM: 4   ! West-France & North Spain
+ 40.0  -10.0
+ 50.0    2.0 
+>REGNUM: 5   ! South-East, incl. Alps. 
+ 40.0    2.0
+ 48.5   20.0
+>REGNUM: 6   ! Domain Center, incl. Belgium 
+ 49.5    3.0
+ 51.8    7.0
+>REGNUM: 7   ! Alpine Region
+ 43.2   5.0
+ 47.2   8.5
+>REGNUM: 7   ! Alpine Region (cont.)
+ 45.5   7.5
+ 48.5   15.5
+>REGNUM: 8   ! "Arriere des Alpes, sud-est" (test)
+ 40.0   7.8 
+ 45.5   20.0  
+>REGNUM: 8   ! "Arrirere..." (cont.)
+ 40.0   15.0 
+ 48.5   20.0
+>REGNUM: 9   ! "Arriere..." - Version dom decale
+ 41.5   7.8
+ 45.5   17.0
+>REGNUM: 9   ! "Arrirere..." (cont.)
+ 45.5   15.0
+ 48.5   18.0

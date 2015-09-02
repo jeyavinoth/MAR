@@ -1,0 +1,142 @@
++------------------------------------------------------------------------+
+|                                                                        |
+|                  ************************************                  |
+|                  *                                  *                  |
+|                  *    N    E    S    T    O    R    *                  |
+|                  *                                  *                  |
+|                  ************************************                  |
+|                                                                        |
+|        Olivier Brasseur (<3.1.1) and Xavier Fettweis (>4.0.0)          |
+|                                                                        | 
++------------------------------------------------------------------------+
+
+Summary of changes from v4.1.9 to v4.1.8
+========================================
+
+GLOglf.f : [HG,XF] Bugs fixed to have NDVI01 between 0E to 12E for the domain EUR
+
+GLOveg.f : [XF]    Bugs fixed to have NDVI01 for the domain EUR
+
+Summary of changes from v4.1.8 to v4.1.7
+========================================
+
+PRCdes.f : [LG] Bugs fixed
+
+VecRot.f : [LG]	Bugs fixed
+
+PRCout.f : [LG] Bugs fixed
+
+libUN.f  : [PM] Update
+
+Summary of changes from v4.1.7 to v4.1.6
+========================================
+
+MARvgd.f : [PM] Bugs fixed
+
+CORveg.f : [PM] Bugs fixed
+
+MARhgd.f : [PM] Bugs fixed
+
+libUN.f  : [PM] Bugs fixed
+
+Summary of changes from v4.1.4 to v4.1.5
+========================================
+
+NSTint.f: [XF] Bugs fixed with NSTsst and NST_st.
+
+MARhgd.f: [XF] Changes in the displayed comments.
+
+MARvgd:f: [XF]Changes in the displayed comments.
+
+Summary of changes from v4.1.2 to v4.1.4
+========================================
+
+GLOfrc.f: [HG-RR] A lot of bugs fixed for the domain AFW (NDVI).
+
+GLOglf.f: [HG-RR] A lot of bugs fixed for the domain AFW (GLF,LAI).
+
+GSWPsl.f: [HG-RR-XF] A lot of bugs fixed for the domain AFW (ALB max).
+
+MARvgd.f: [PM] Changes in the displayed comments.
+
+NSTint.f: [XF] Bugs fixed for NSTsst.
+
+Summary of changes from v4.1.1 to v4.1.2
+========================================
+
+INTmsk.f: [XF] New subroutine to extrapolate LSC "ocean only" fields to 
+               continent (SIC,SSTK from ERA-40).
+
+FAOsol.f: [XF] Bug fixed.
+
+GLOveg.f: [XF-PM] A lot of bug fixed.
+          [XF] SVAT class added if nvx < 4!
+	  [XF] Bug fixed in Spain with false choice of IGBP files
+
+MARout.f: [XF] Bug fixed.
+
+NSTint.f: [XF] Bug fixed in sea ice concentration (NSTsic) interpolation.
+          [XF] Use of SSTK from ERA-40 for sea surface temperature 
+	       computation.
+          [PM] Clouds at boundary (via CLDcor=.true.)
+
+PRCdes.f: [XF-EV] Bug fixed to can compile this subroutine on ECMWF
+
+SVTpar.f: [HG] Bug fixed.
+
+USReur.f: [XF] Snow/ice (NSTsol=3) disable.
+	  
+Summary of changes from v4.1.0 to v4.1.1
+========================================
+
+MARout.f: [XF] Bug fixed
+
+USReur.f: [XF] New Subroutine for EUR.
+
+Summary of changes from v4.0.0 to v4.1.0
+========================================
+
+FAOsol.f: [XF] Computation of albedo (NSTdsa). 
+          [XF] Albedo (NSTdsa) above ice sheet fixed at 0.20 (0.55 
+	       before) to not have problem when ice sea meltes.
+
+GLOfrc.f: [RR] For AFW, use of input/NDVI/maxNDVI83-92.nc to compute NDVI 
+               max. This file is not inculded in NESTOR distribution.
+
+GLOglf.f: [RR] Green leaf fraction (NSTglf) imposed to 1 in AFW. 
+          [RR] New computation of LAI (NSTlai). 
+
+GLOveg.f: [XF] Bug fixed.
+
+GSWPsl.f: [XF] New subroutine to compute albedo (NSTdsa) and texture 
+            +  (NSTtex) from ./Input/SOIL/GSWP-SOIL.nc. 
+          [RR] This File is included in the NESTOR distribution.
+
+MARout.f: [XF] Added parameter (SP2DP) of to run NESTOR in simple 
+               precision and to have outputs in double precision.
+          [HG] Output of MARubc.DAT (boundary forcing).
+          [HG] Output of MARsic.DAT (sea ice fraction).
+          [HG] New output in MARdyn.DAT for version MAR > 15/02/04.
+
+NESTOR.f  [XF] Bug fixed (to remove problem at the boundary sea/land)
+          [XF] Call of GSWPsl.f instead of FAOsol.f by default.
+
+NSTint.f  [HG] Interpolation of sea ice fraction (NSTsic) from ERA-40 
+               reanalysis.
+
+NSTout.f  [HG] Output of sea ice fraction (NSTsic) in the netcdf file.
+          [XF] Output of SVAT albedo (NSTdsa) in the netcdf file.
+          [XF] Output name = NESTOR name. 
+
+SSTint.f  [XF] Bug fixed.
+
+SVTpar.f  [RR] Many bug fixed in soil humidity (NST_sw) computation.
+          [XF] Computation of albedo (NSTdsa) removed.
+	  
+	  
+HG = Hubert Gallée    (LGGE,gallee@lgge.obs.ujf-grenoble.fr)
+LG = Luc Gential      (LGGE,gential@lgge.obs.ujf-grenoble.fr)
+PM = Philippe Marbaix (ASTR,marbaix@astr.ucl.ac.be)
+RR = Romain Ramel     (LTHE,ramel@hmg.inpg.fr)
+XF = Xavier Fettweis  (ASTR,fettweis@astr.ucl.ac.be)	  
+	  

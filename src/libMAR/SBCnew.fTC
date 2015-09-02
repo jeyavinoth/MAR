@@ -1,0 +1,39 @@
+C +
+C +
+C +--Aerosols Optical Depth
+C +  ======================
+C +
+      do j=1,my
+      do i=1,mx
+           optwa  = zero
+C +...     optwa  : Aerosol path (kg/m2)
+C +
+         DO k = mzabso+1,mz
+           rhodzk = (pstDY(i,j)*sigma(k)+ptopDY)
+     .            / (ra*tairDY(i,j,k)*(1.+.608*qvDY(i,j,k)))
+     .            * (gpmiDY(i,j,k)-gpmiDY(i,j,k+1))
+C +...     rhodzk : (rho / 1000) * (dz * gravit)
+C +
+           optwa  = optwa + rhodzk * qxTC(i,j,k,1) 
+c +
+         END DO
+C +
+           WKxy6(i,j)  = 0.5 * ( optwa / 500.e-6 ) *grvinv
+C +
+      enddo
+      enddo
+C +
+C +   ************
+      CALL UNwrite (ID__nc, 'OptDAe ', ipr2nc, mx, my, 1 , WKxy6 )
+C +   ************
+C +
+C +
+C +--Work Arrays Reset
+C +  -----------------
+C +
+      do j=1,my
+      do i=1,mx
+        WKxy6(i,j)   =0.0
+      enddo
+      enddo
+C +

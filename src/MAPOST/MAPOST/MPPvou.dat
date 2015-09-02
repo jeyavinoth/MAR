@@ -1,0 +1,167 @@
+#---*--------*--------*--------*--------*--------*-----------*----------------------------MAPOST(NetCDF)-+
+#    Variable ---------Dimensions---------------- Unites      Nom complet (description)
+#---*--------1--------2--------3--------4--------*-----------*-------------------------------------------+
+#
+    date     -        -        -        time     MMDDHH      Date, as month(MM), day(DD), hour(HH)
+    lon      x        y        -        -        degrees     Longitude (MAR)
+    lat      x        y        -        -        degrees     Latitude  (MAR)
+    MAR_sh   x        y        -        -        m           Surface Height (MAR)
+    RLS_sh   x        y        -        -        m           Surface Height (RLS)
+    isol     x        y        -        -        -           Surface Type                         
+    RegMsk   x        y        -        -        -           Averaging Region Number
+#   LSM_M    x        y        -        -        -           Land-Sea Mask for the MAR grid.
+    LSM_L    LS_lon   LS_lat   -        -        -           Land-Sea Mask for the Large Scale grid.
+#
+#---SEA LEVEL PRESSURE---------------------------------------*-------------------------------------------+
+#
+H   tM_slpM  x        y        -        -        hPa         tM[MSLP] (MAR)
+H   tM_slpR  x        y        -        -        hPa         tM[MSLP] (RLS)
+H   tSD_slpM x        y        -        -        hPa         tSD[MSLP] (MAR)
+H   tSD_slpR x        y        -        -        hPa         tSD[MSLP] (RLS)
+H   tMrMslp  SubReg   -        -        -        hPa         tM[RegM[MSLP]] (MAR-RLS)
+H   tMsEslp  SubReg   -        -        -        hPa         tM[RMSE[MSLP]] (MAR-RLS) 
+H   rM_slpM  SubReg   -        -        time     hPa         RegM[MSLP] (MAR) 
+H   rM_slpR  SubReg   -        -        time     hPa         RegM[MSLP] (RLS) 
+H   RMSEslp  SubReg   -        -        time     hPa         RMSE[MSLP] (MAR-RLS)
+#
+#---GEOPOTENIAL----------------------------------------------*-------------------------------------------+
+#
+H   tM_Z_M   x        y        plevel   -        m           tM[Z] (MAR)
+H   tM_Z_R   x        y        plevel   -        m           tM[Z] (RLS)
+H   tSD_Z_M  x        y        plevel   -        m           tSD[Z] (MAR)
+H   tSD_Z_R  x        y        plevel   -        m           tSD[Z] (RLS)
+H   SBPZ5_M  x        y        -        -        m           SDBP[Z500] (MAR)
+H   SBPZ5_R  x        y        -        -        m           SDBP[Z500] (RLS)
+H   RMSE_Z5  SubReg   -        -        time     m           RMSE[Z500] (MAR-RLS) 
+#
+#---TEMPERATURE----------------------------------------------*-------------------------------------------+
+#
+H   tM_T_M   x        y        plevel   -        K           tM[T] (MAR)
+H   tM_T_R   x        y        plevel   -        K           tM[T] (RLS)
+H   tSD_T_M  x        y        plevel   -        K           tSD[T] (MAR)
+H   tSD_T_R  x        y        plevel   -        K           tSD[T] (RLS)
+H   rM_T_M   SubReg   -        plevel   time     K           RegM[T] (MAR)
+H   rM_T_R   SubReg   -        plevel   time     K           RegM[T] (RLS)
+#
+#---SPECIFIC HUMIDITY----------------------------------------*-------------------------------------------+
+#
+H   tM_Q_M   x        y        plevel   -        Kg/Kg       tM[Q] (MAR)
+H   tM_Q_R   x        y        plevel   -        kg/Kg       tM[Q] (RLS)
+H   tSD_Q_M  x        y        plevel   -        Kg/Kg       tSD[Q] (MAR)
+H   tSD_Q_R  x        y        plevel   -        Kg/Kg       tSD[Q] (RLS)
+H   rM_Q_M   SubReg   -        plevel   time     Kg/Kg       RegM[Q] (MAR)
+H   rM_Q_R   SubReg   -        plevel   time     Kg/Kg       RegM[Q] (RLS)
+#
+#---WIND 500hPa----------------------------------------------*-------------------------------------------+
+#
+H   tM_UV5M  x        y        -        -        m/s         tM[Wind500] (MAR)
+H   tM_UV5R  x        y        -        -        m/s         tM[Wind500] (RLS)
+H   tSD_UV5M x        y        -        -        m/s         tSD[Wind500] (MAR)
+H   tSD_UV5R x        y        -        -        m/s         tSD[Wind500] (RLS)
+#
+#---ZONAL WIND-----------------------------------------------*-------------------------------------------+
+#
+H   tM_U_M   x        y        plevel   -        m/s         tM[u] (MAR)
+H   tM_U_R   x        y        plevel   -        m/s         tM[u] (RLS)
+H   tSD_U_M  x        y        plevel   -        m/s         tSD[U] (MAR)
+H   tSD_U_R  x        y        plevel   -        m/s         tSD[U] (RLS) 
+H   rM_U_M   SubReg   -        plevel   time     m/s         RegM[U] (MAR)
+H   rM_U_R   SubReg   -        plevel   time     m/s         RegM[U] (RLS)
+#
+#---MERIDIONAL WIND------------------------------------------*-------------------------------------------+
+#
+H   tM_V_M   x        y        plevel   -        m/s         tM[v] (MAR)
+H   tM_V_R   x        y        plevel   -        m/s         tM[v] (RLS)
+H   tSD_V_M  x        y        plevel   -        m/s         tSD[V] (MAR)
+H   tSD_V_R  x        y        plevel   -        m/s         tSD[V] (RLS)  
+H   rM_V_M   SubReg   -        plevel   time     m/s         RegM[V] (MAR)
+H   rM_V_R   SubReg   -        plevel   time     m/s         RegM[V] (RLS)
+#
+#---MEAN VERTIVAL PORFILE------------------------------------*-------------------------------------------+
+#
+V   pM_VP    MARlev   SubReg   -        -        hPa         Pressure (Mean Vertical Profile) 
+V   t__VP    MARlev   SubReg   -        -        C           Temperature  (Mean Vertical Profiles)
+V   qv_VP    MARlev   SubReg   -        -        Kg/Kg       Specific Humidity (Mean Vertical Profiles)
+V   u__VP    MARlev   SubReg   -        -        m/s         Zonal Wind (Mean Vertical Profiles)
+V   v__VP    MARlev   SubReg   -        -        m/s         Meridional Wind (Mean Vertical Profiles)
+#
+#---LATERAL BOUNDARY related variables-----------------------*-------------------------------------------+
+#
+B   MKE1_db  dbound   MARlev   -        -        m2/s2       MKE - 2 to 3 dx noise (test) 
+B   MKE2_db  dbound   MARlev   -        -        m2/s2       MKE (< 5 grid pt)
+B   MKE2idb  dbound   MARlev   -        -        m2/s2       MKE at inflow points (< 5 grid pt) 
+B   MKE2odb  dbound   MARlev   -        -        m2/s2       MKE at outflow points (< 5 grid pt)
+B   MKE3_db  dbound   MARlev   -        -        m2/s2       'Mesoscale' Kinetic Energy (< 7 grid pt)
+B   MSLP_db  dbound   -        -        -        hPa         Mean Sea Level Pressure osc. (< 5 grid pt)
+B   CLOU_db  dbound   -        -        -        m(water)    Cloud Thickness (Water Path Qw+Qi)
+#
+#---RAIN PRECIPICTATION--------------------------------------*-------------------------------------------+
+#
+S   C_RR_M   x        y        -        -        m(water)    RR (MAR) 
+S   C_RR_R   x        y        -        -        m(water)    RR (RLS)
+S   C_RR_LM  LS_lon   LS_lat   -        -        m(water)    RR (MAR) 
+S   C_RR_LR  LS_lon   LS_lat   -        -        m(water)    RR (RLS)
+S   r_RR_M   SubReg   -        -        time     m(water)    RegM[RR] (MAR)
+S   r_RR_R   SubReg   -        -        time     m(water)    RegM[RR] (RLS)
+#
+#---CONVECTIVE PRECIPICTATION--------------------------------*-------------------------------------------+
+#
+S   C_CP_M   x        y        -        -        m(water)    CP (MAR) 
+S   C_CP_R   x        y        -        -        m(water)    CP (RLS)
+S   C_CP_LM  LS_lon   LS_lat   -        -        m(water)    CP (MAR) 
+S   C_CP_LR  LS_lon   LS_lat   -        -        m(water)    CP (RLS)
+S   r_CP_M   SubReg   -        -        time     m(water)    RegM[CP] (MAR)
+S   r_CP_R   SubReg   -        -        time     m(water)    RegM[CP] (RLS)
+#
+#---SNOW FALL------------------------------------------------*-------------------------------------------+
+#
+S   C_SF_M   x        y        -        -        m(water)    SF (MAR) 
+S   C_SF_R   x        y        -        -        m(water)    SF (RLS)
+S   C_SF_LM  LS_lon   LS_lat   -        -        m(water)    SF (MAR) 
+S   C_SF_LR  LS_lon   LS_lat   -        -        m(water)    SF (RLS)
+S   r_SF_M   SubReg   -        -        time     m(water)    RegM[SF] (MAR)
+S   r_SF_R   SubReg   -        -        time     m(water)    RegM[SF] (RLS)
+#
+#---TOTAL PRECIPICTATION-------------------------------------*-------------------------------------------+
+#
+S   C_TOT_M  x        y        -        -        m(water)    Precipitation total (MAR)
+S   C_TOT_R  x        y        -        -        m(water)    Precipitation total (RLS)
+S   C_TOT_O  x        y        -        -        m(water)    Observed precipitation (CRU)
+S   C_TOT_LM LS_lon   LS_lat   -        -        m(water)    Precipitation total (MAR) 
+S   C_TOT_LR LS_lon   LS_lat   -        -        m(water)    Precipitation total (RLS)
+S   r_TOT_M  SubReg   -        -        time     m(water)    RegM[Tot] (MAR)
+S   r_TOT_R  SubReg   -        -        time     m(water)    RegM[Tot] (RLS)
+#
+#---ALBEDO---------------------------------------------------*-------------------------------------------+
+#
+S   tM_al_M  x        y        -        -        -           tM[albedo] (MAR)
+S   tM_al_R  x        y        -        -        -           tM[albedo] (LS)
+S   tSD_al_M x        y        -        -        -           tSD[albedo] (MAR)
+S   tSD_al_R x        y        -        -        -           tSD[albedo] (LS)
+S   rM_al_M  SubReg   -        -        time     -           RegM[albedo] (MAR)
+S   rM_al_R  SubReg   -        -        time     -           RegM[albedo] (LS)
+#
+#---2M TEMPERATURE-------------------------------------------*-------------------------------------------+
+#
+#   rT2_M    SubReg   -        -        time     K           RegM[T2] (MAR)
+#   rT2_R    SubReg   -        -        time     K           RegM[T2] (RLS)
+#   rT2minM  SubReg   -        -        time     K           RegM[T2min] (MAR)
+#   rT2maxM  SubReg   -        -        time     K           RegM[T2max] (MAR)
+#   tM_T2_R  x        y        -        -        K           tM[T2] (RLS)
+#   tM_T2_M  x        y        -        -        K           tM[T2] (MAR)
+#   tM_TmiM  SubReg   -        -        -        K           tM[RegM[T2]] (RLS)
+#   tM_TmaM  SubReg   -        -        -        K           tM[RegM[T2]] (RLS)
+#
+#------------------------------------------------------------*-------------------------------------------+
+#
+#Remarks:                    
+#--------
+#
+# -1- Letters in the first column (H,V,B...) refer to output categories in MAPOST.ctr
+#     When "Horizontal" is not selected in MAPOST.ctr, "H" variable are not writen
+#     ect...
+# 
+# -2- Defined dimensions are: x and y, 
+#                             level    = main sigma levels k
+#                             level/2  =      sigma levels k+1/2
+#     A dimension for subgrid surface types (vegetation...) may be added (in OUTidl)

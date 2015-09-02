@@ -1,0 +1,8 @@
+#
+#POMME.f necessary parameters
+#
+F86                 # Name of the run                     [max. 3 char.]
+1986                # Year to post-process                        [YYYY]
+10                  # Month when to start the post-processing       [MM]
+12                  # Month when to end   the post-processing       [MM]
+                    #                  (see POMME.f for further details)

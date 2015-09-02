@@ -1,0 +1,160 @@
++------------+-------------------------------------------------------------+
+       Label | Signification                                                
++------------+-------------------------------------------------------------+
+       #DP   | DOUBLE PRECISION -- DOUBLE PRECISION -- DOUBLE PRECISION     
++------------+-------------------------------------------------------------+
+       #//   | Parallelisation Set Up is activated   (software MPI used)
++------------+-------------------------------------------------------------+
+       #HF   | Initialisation of Huang and Lynch 1993   (HAMMING Filter)    
++------------+-------------------------------------------------------------+
+       #NH   | DYNAMICS: Non-Hydrost. Code  (adapted from Laprise, 1992)    
+       #ON   | DYNAMICS: Non-Hydrost. Corr. (Weisman &al.1997 MWR p.541)    
+       #DD   | DYNAMICS: Mass Divergence Damper (Skamarock &Klemp, 1992)    
+       #CC   | DYNAMICS: Constant Coriolis Parameter = fcorDY(imez,jmez)    
+       #HE   | DYNAMICS: DNMI   Model Vertical Discretisation(29 Levels)    
+       #PA   | DYNAMICS: Parish Model Vertical Discretisation(10 Levels)    
+       #PV   | DYNAMICS: Large Scale Flow conserves Pot. Vort. (2D ONLY)    
+       #pv   | DYNAMICS: Large Scale Flow conserves Pot. Temp. (2D ONLY)    
+       #UP   | DYNAMICS: Vertical Upstr. Advection Scheme (1st accuracy)    
+       #ZU   | DYNAMICS: Vertical Advection: Cubic Spline (4th accurate)    
+       #ZO   | DYNAMICS: Vertical Advection: Cubic Spline (+Open  SrfBC)    
+       #UR   | DYNAMICS: Vertical Advection/ Upper Radiating Bound.Cond.    
+       #EP   | DYNAMICS: Lateral Sponge included in    Horizontal Filter    
+       #RB   | DYNAMICS: Lateral BC: Carpenter(1982) Sommerfeld Modified    
+ X     #DA   | DYNAMICS: Lateral BC: Davies (1976) BC on Wind // Lat.B.     
+       #da   | DYNAMICS: Lateral BC: Davies (1976) BC: K, nu  computed.     
+       #FB   | DYNAMICS: Lateral BC: Fixed in Horizontal Cubic Spline       
+       #OB   | DYNAMICS: Lateral BC: Zero Gradient                          
+       #OG   | DYNAMICS: Lateral BC: (Left) NO Nudging if relaxg=.false.    
+       #ob   | DYNAMICS: Lateral BC: Zero Gradient (Subroutine LBC000)      
+       #Di   | DYNAMICS: Top BC: Dirichlet  (fixed)                         
+       #V+   | DYNAMICS: Top BC: Von Neuman (prescrib.non zero-gradient)    
+       #PS   | DYNAMICS: Domain Averaged Pressure Thickness   maintained    
+       #DY   | DYNAMICS: OUTPUT: Components  lowest Level Forces Balance    
++------------+-------------------------------------------------------------+
+       _PE   | DIFFUSION:(%Grad.)   Slope      USE+ _HH or     (_HH #CR)    
+       #PE   | DIFFUSION:(%Deform.) Slope      USE+ #DF or (#DF #DC #CR)    
+       _HH   | DIFFUSION:(%Grad.)   Vert.Cor.  USE+ _PE                     
+       #DF   | DIFFUSION:(%Deform.) Vert.Cor.  USE+ #PE or (#PE #DC #CR)    
+       #DC   | DIFFUSION:(%Deform.)            USE+        (#DF #PE #CR)    
+       #CR   | DIFFUSION: Cross Corr.    USE+ (_PE _HH) or (#DF #PE #DC)    
+ X     #FE   | FILTERING: Digital Filtering of TKE                          
+       #FO   | FILTERING: Digital Filtering of TKE (zero gradient at LB)    
+       #KS   | FILTERING: Upper Sponge is solved by horizontal filtering    
++------------+-------------------------------------------------------------+
+ X     #CA   | CONVECTIVE  Adjustment (Fritsch & Chappell 1980 Set Up)      
+ X     #kf   | CONVECTIVE  Adjustment (Kain    & Fritsch  1990 Improvm.)    
+ X     #IT   | CONVECTIVE  Adjustment (over 5km Adiabatics Starting Pts)    
+ X     #AN   | CONVECTIVE  Adjustment (Subgrid Mountain Breeze included)    
+ X     #WD   | CONVECTIVE  Adjustment (Water Detrainment       included)    
+ X     #CG   | CONVECTIVE  Adjustment (Cloud Glaciation        included)    
+ X     #ND   | CONVECTIVE  Adjustment (No Precip if LevFSink<LiftCond.L)    
++------------+-------------------------------------------------------------+
+       #BR   | TURBULENCE: 2.5 Level  2nd Order  (Brasseur         1997)    
+ X     #TA   | TURBULENCE: K-e: Dissipation + Advect.Horiz.TKE Transport     
+ X     #TD   | TURBULENCE: K-e: Dissipation + Diffus.Horiz.TKE Transport     
+       #HR   | TURBULENCE: K-e: Huang & Raman              (1991) BLM 55    
+       #KI   | TURBULENCE: K-e: Kitada                     (1987) BLM 41    
+       #BH   | TURBULENCE: K-e: Kitada (modified)           USE with #KI    
+       #Kl   | TURBULENCE: K-l: Therry & Lacarrere         (1983) BLM 25    
+       #LE   | TURBULENCE: K  : Louis                      (1979) BLM 17    
+       #KC   | TURBULENCE: T.K.E.(mz1) := T.K.E.(mz)                        
+       #De   | TURBULENCE: Top BC: Dirichlet (fixed) (ect_TE and eps_TE)    
+       #WE   | TURBULENCE: T.K.E. OUTPUT on File MAR.TKE                    
++------------+-------------------------------------------------------------+
+       #BU   | SBL: Univ.Funct.:    Businger (1973)  USE with _NO OR #NO    
+       _NO   | SBL: Univ.Funct.: NO Noilhan  (1987)  USE with #BU OR #DR    
+       #NO   | SBL: Univ.Funct.:    Noilhan  (1987)  USE with #BU           
+       #DR   | SBL: Univ.Funct.:    Dyer     (1974)  USE with _NO           
+       #LP   | SBL: Blowing Snow Fric. Veloc. Thr. (Li and Pomeroy 1997)    
+       #DS   | SBL: Blowing Snow SBL   Flux   (analytical Form of dq/dz)    
+ X     #ZS   | SBL: Mom.: Roughn.Length= F(u*) Chamberlain (1983)   Sea     
+       #ZN   | SBL: Mom.: Roughn.Length= F(u*)                     Snow     
+       #RN   | SBL: Heat: Roughn.Length= F(u*,z0)  Andreas (1987)  Snow     
+       #QI   | Water Vapour Surface Flux: Implicit numerical Scheme  (K)       
+       #QI   | Blowing Snow Surface Flux: Implicit numerical Scheme  (K)    
++------------+-------------------------------------------------------------+
+ X     #SB   | Surface Boundary: modified externally (from Campain Data)    
++------------+-------------------------------------------------------------+
+       #OL   | TEST:      Linear Mountain Wave: Specific IO    (2D ONLY)    
+       #OM   | TEST: (Non)Linear Mountain Wave: Specific INPUT (2D ONLY)    
+       #OS   | TEST:      Linear Mountain Wave: Specific IO    (2D ONLY)    
+       #GR   | TEST: LBC: 10C/d  Atmos.Cooling at Model Center (2D ONLY)    
+       #K1   | TEST: LBC: Katab. Atmos.Warming                 (1D ONLY)    
+       #EK   | TEST: EKMAN Spiral: Constant Vertical Turbul. Coefficient    
+       #CL   | TEST: Convective Mixed Layer Test         (HS = 100 W/m2)    
+       #NL   | TEST: Nearly   Neutral Layer Test         (HS =   0 W/m2)    
++------------+-------------------------------------------------------------+
+       #TC   | TraCer   Advection-Diffusion Equation        is turned ON    
+       #TS   | TraCer   Tracer Deposition diagnostic        is turned ON    
+       #CH   | Chemical Atmospheric         Model       may be turned ON    
+       #MV   | TraCer   Total Mass          Verification    is turned ON    
++------------+-------------------------------------------------------------+
+ X     #HY   | Explicit Cloud MICROPHYSICS              may be turned ON    
+       #HO   | Explicit Cloud MICROPHYSICS: Zero-Gradient Lat.Bound.Cond    
+       #LI   | Explicit Cloud MICROPHYSICS: Lin et al. (1983) Autoconv.     
+       #BS   | Explicit Cloud MICROPHYSICS: Blow. *(Snow)         Model     
+       #SS   | Explicit Cloud MICROPHYSICS: Blow. *(Snow)  Linear Model     
+       #S0   | Explicit Cloud MICROPHYSICS: Blow. *(Byrd)  Linear Model     
+ X     #HV   | Explicit Cloud MICROPHYSICS: Air Loading by Hydrometeors     
+       #BV   | Explicit Cloud MICROPHYSICS: SBL Loading by all Water Sp.    
+       #WB   | Explicit Cloud MICROPHYSICS: Blowing Snow Statistics         
+       #EW   | Explicit Cloud MICROPHYSICS: OUTPUT (Ener./Mass) (Unit 6)    
+       #WH   | Explicit Cloud MICROPHYSICS: OUTPUT              (Unit 6)    
+       #WQ   | Explicit Cloud MICROPHYSICS: OUTPUT (Full Verif) (Unit 6)    
+       #WC   | Explicit Cloud MICROPHYSICS: Water Conservation Controled    
++------------+-------------------------------------------------------------+
+       #AZ   | PHYSICS: Solar : Direct Radiation:   Surface Slope Impact    
+       #MM   | PHYSICS: Solar : Direct Radiation:   Mountains Mask    ON    
+       #TR   | PHYSICS: Solarn: Clear Sky, without Underlying Reflection    
+       #SA   | PHYSICS: MAR Code behaves  as a Stand Alone Surface Model    
++------------+-------------------------------------------------------------+
+       #ST   | EVOLUTIVE SST (Sea Surface Temperature/Swab Ocean)           
++------------+-------------------------------------------------------------+
+       #PO   | POLYNYA Model                            may be turned ON    
+       #FD   | POLYNYA Model: Sea-Ice Velocity is Free Drift                 
+       #HA   | POLYNYA Model: POLYNYA Surface Energy Balance:  2000 W/m2    
+       #HI   | POLYNYA Model: Hibler (1979) Parameteriz. of Ice Strength    
+       #CN   | POLYNYA Model: Prescription of a Local Avective Time Step    
++------------+-------------------------------------------------------------+
+       #SN   | SNOW Model                               may be turned ON    
+       #AB   | SNOW Model: Interactive Albedo f(Grain) (Brun et al.1991)    
+       #AG   | SNOW Model: Snow Aging Col de Porte     (Brun et al.1991)    
+       #DG   | SNOW Model: Snow Settling when Melting | Minimum Density     
+       #Se   | SNOW Model: Energy Conserv. Verific.: Summary, Output        
+       #SE   | SNOW Model: Energy Conserv. Verific.: Summary, Output++++    
+       #SF   | SNOW Model: Energy Conserv. Verific.: Forcing, Conduction    
+       #SW   | SNOW Model: Water  Conserv. Verific.: Melting, Freezing      
+       #HS   | SNOW Model: Hardened SNOW Pack Initialization                
+       #GI   | SNOW Model (GIMEX): SNOW Pack Initialization                 
+       #GA   | SNOW Model (GIMEX): SNOW Pack Initialization rho(Albedo)     
+       #EQ   | SNOW Model (GIMEX): SNOW Pack initialized by 200 mmWE/yr     
+       #RU   | SNOW Model: Slush:  Internal Run OFF of Water Excess         
+       #GK   | SNOW Model: Interactive Albedo (Greuell &Konzelmann 1994)    
+       #SL   | SNOW Model: Interactive Albedo (Zuo     &Oerlemans  1995)    
+       #SM   | SNOW Model: Melting/Freezing Diagnostics                     
+       #CP   | SNOW Model: For Validation on Col de Porte Data              
++------------+-------------------------------------------------------------+
+ X     #TV   | Soil /Vegetation Model                   may be turned ON    
+ X     #V1   | Soil /Vegetation Model: Veget. Types: IGBP Classification    
+       #V2   | Soil /Vegetation Model: Veget. Types: MAR  Classification    
+       #WG   | Soil /Humidity   Model                   may be turned ON
++------------+-------------------------------------------------------------+
+       #CS   |  INPUT: Constant Sounding during 1st Hours     (2-D ONLY)    
++------------+-------------------------------------------------------------+
+ X     #IB   | OUTPUT: Ice-Sheet Surface Mass Balance  (on MARphy File )    
+ X     #ID   | OUTPUT: Main Dependant Variables        (on NetCDF File )
+ X     #T2   | OUTPUT: 2-m  Air Temperature            (on NetCDF File )    
+       #MA   | OUTPUT: MesoAnimation                   (on NetCDF Files)    
+       #W6   | OUTPUT, Additional: Simulation Statistics      on MAR.log    
+       #WA   | OUTPUT, Additional:                            DYNadv_ver    
+       #WR   | OUTPUT, Additional: INIsnd, infra, SRFmod_sno, SRFmod_pol    
++------------+-------------------------------------------------------------+
+       #NV   | PORTABILITY: Non Vectorization Procedure /scalar Computer    
+       #VL   | PORTABILITY: Enables use of veclib library on CONVEX 3820    
+       #CV   | PORTABILITY: Enables use of Netcdf library on CONVEX 3820    
+       #HP   | PORTABILITY: Enables use of own    library on Linux syst.    
++------------+-------------------------------------------------------------+
+         1         2         3         4         5         6         7
+1234567890123456789012345678901234567890123456789012345678901234567890123456
++------------+-------------------------------------------------------------+

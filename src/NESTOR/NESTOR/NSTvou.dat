@@ -1,0 +1,48 @@
+#---*--------*--------*--------*--------*--------*-----------*----------(NetCDF/IDL)-+
+#   Variable ---------Dimensions---------------- Unites      Nom complet (description)
+#---*--------1--------2--------3--------4--------*-----------*-----------------------+
+    DATE     -        -        -        time     MMDDHH      Date (MM/DD/HH)
+    LON      x        y        -        -        degrees     Longitude                (NSTlon)
+    LAT      x        y        -        -        degrees     Latitude                 (NSTlat)
+    SH       x        y        -        -        m           Surface height           (NST_sh)
+    SOL      x        y        -        -        -           Surface type             (NSTsol)
+    TEX      x        y        -        -        -           Soil texture             (NSTtex)    
+    Z0       x        y        -        -        m           Roug. lenght (mom.)      (NST_z0)
+    R0       x        y        -        -        m           Roug. lenght (heat)      (NST_r0)
+    ALB      x        y        -        -        -           Soil Albedo (Deardorf)   (NSTalb)
+    DSA      x        y        -        -        -           Soil Albedo (SVAT)       (NSTdsa)    
+    ICE      x        y        -        -        -           Ice mask (if mw=2)       (NSTice)    
+    RES      x        y        -        -        s/m         Stomatal resistance      (NSTres)    
+#   
+    NDV      x        y        -        time     -           NDVI                     (NSTndv)
+    DV1      x        y        -        -        -           Minimum NDVI index       (NSTdv1)
+    DV2      x        y        -        -        -           Maximum NDVI index       (NSTdv2)    
+#
+    FRC      x        y        -        -        -           Fract. of vege. cover    (NSTfrc)
+    GLF      x        y        sector   time     -           Green leaf fraction      (NSTglf)
+    VFR      x        y        sector   -        -           Frct. of IGBP veg.       (NSTvfr)    
+    SFR      x        y        sector   -        -           Frct. of SVAT veg.       (NSTsfr)
+#
+    VEG      x        y        sector   -        -           IGBP veg. types          (NSTveg)
+    SVT      x        y        sector   -        -           SVAT veg. types          (NSTsvt)
+#
+    LAI      x        y        sector   time     -           Leaf area index          (NSTlai)
+    EFRV     x        y        -        time     -           Effect. frac. of veg.    
+    ELAI     x        y        -        time     -           Effect. leaf area index  
+#
+    TS       x        y        soil     -        K           Init. soil temp.         (NST_ts)
+    SW       x        y        soil     -        -           Init. soil wetn.         (NST_sw)
+#    
+    UU       x        y        level    time     m/s         X-wind speed comp.       (NST__u)
+    VV       x        y        level    time     m/s         Y-wind speed comp.       (NST__v)
+    TT       x        y        level    time     K           Real Temperature         (NST__t)
+    PT       x        y        level    time     K           Potential temp.          (NST_pt)
+    QQ       x        y        level    time     Kg/Kg       Specific Humidity        (NST_qv)
+    ZZ       x        y        level    time     m           Model Levels Height      (NST_zz)
+    SP       x        y        -        time     kPa         Pressure Tickness        (NST_sp)
+    ST       x        y        -        time     K           Surface temperature      (NST_st)
+#    
+    SST      x        y        -        time     K           Sea surf. temp.          (NSTsst)
+    SIC      x        y        -        time     -           Sea Ice . fraction       (NSTsic)
+    EWC      x        y        -        time     kg/m2       Equivalent W. C.         (NSTewc)
+#

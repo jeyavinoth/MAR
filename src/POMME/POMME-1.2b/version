@@ -1,0 +1,13 @@
+2006/03/01
+  
+  POMME-1.2b: uairdy and vairdy stored for k=1:40 instead of k=30:40
+
+------------------------------------------------------------------------
+2006/04/12
+
+  POMME-2.0 : addition of the glf_TV, alai_TV, ifra_TV, iveg_TV, isolTV,
+              HSv_SL, HSs_SL, HLv_SL, HLs_SL, HsenSL2, HlatSL2,
+              Evp_SL, EvT_SL, RootSL
+              Input files must come from the adapted version of MAR 
+              producing these variables. Otherwise, use version 1.2b.
+

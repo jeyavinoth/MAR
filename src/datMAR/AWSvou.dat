@@ -1,0 +1,98 @@
+#---*--------*--------*--------*--------*--------*-----------*---------------------------MAR(NetCDF/IDL)-+
+#    Variable ---------Dimensions---------------- Unites      Nom complet (description)
+#---*--------1--------2--------3--------4--------*-----------*-------------------------------------------+
+    year     -        -        -        time     YYYY        Date, as year
+    date     -        -        -        time     MMDDHH      Date, as month(MM), day(DD), hour(HH)
+    lonMAR   x        y        -        -        degrees     MARONH AWS Longitude
+    latMAR   x        y        -        -        degrees     MARONH AWS Latitude
+    sh_AWS   x        y        -        -        m           Actual AWS Surface Height 
+    sh_MAR   x        y        -        -        m           MARONH AWS Surface Height 
+    solTyp   x        y        -        -        -           MARONH AWS Surface Type                         
+#
+### Radiative Transfert
+    OLR      x        y        -        time     W/m2        Outgoing Longwave Radiation 
+    DownLW   x        y        -        time     W/m2        Downward Longwave Radiation 
+    DownSW   x        y        -        time     W/m2        Downward Shortwave Radiation 
+    CloudOD  x        y        -        time     -           Cloud Optical Depth
+    CloudFR  x        y        -        time     -           Cloud Fraction
+    AerosOD  x        y        -        time     -           Aerosols Optical Depth
+#
+### Dynamics
+    ZZ       -        -        level    time     m           Geopotential
+    UU       -        -        level    time     m/s         x-Wind Speed Component
+    VV       -        -        level    time     m/s         y-Wind Speed Component
+    TT       -        -        level    time     K           Air Temperature
+#
+### Cloud Microphysics
+    QQ       -        -        level    time     g/kg        Air Specific Humidity
+    QI       -        -        level    time     g/kg        Cloud Ice Crystals
+    QW       -        -        level    time     g/kg        Cloud Droplets    
+    QS       -        -        level    time     g/kg        Snow Flakes       
+    QR       -        -        level    time     g/kg        Rain Drops
+#
+### Precipitation
+    Snow     x        y        -        time     mmWE        Total Snow over last Time Interval
+    Rain     x        y        -        time     mmWE        Total Rain over last Time Interval
+#
+### Seeing
+    Seeing   -        -        level    time     "           Seeing          
+    S__20m   x        y        -        time     "           Seeing 20 m above the surface
+    S__30m   x        y        -        time     "           Seeing 30 m above the surface
+    h__PSL   x        y        -        time     m           Primary Seeing Layer Height (PSL)
+    h__SSL   x        y        -        time     m           Secondary Seeing Layer Height (SSL)
+    CoherT   x        y        -        time     ms          Coherence Wavefront time
+#
+### Turbulence
+    TKE      -        -        level    time     m2/s2       Turbulent Kinetic Energy
+    epsTKE   -        -        level    time     m2/s3       Turbulent Kinetic Energy Dissipation
+    Kz       -        -        level    time     m2/s        Turbulent Transfert Coefficient (Momentum)
+    UpWp     -        -        level    time     m2/s2       Turbulent x-Momentum Transport
+    VpWp     -        -        level    time     m2/s2       Turbulent y-Momentum Transport
+#
+### SBL
+    WGE      x        y        -        time     m/s         Wind Gust Estimate
+    WGE_LB   x        y        -        time     m/s         Lower bound on Wind Gust Estimate
+    WGE_UB   x        y        -        time     m/s         Upper bound on Wind Gust Estimate
+    FF_AWS   x        y        -        time     m/s         AWS-Level Wind Speed
+    TT_AWS   x        y        -        time     K           AWS-Level Temperature
+    FF       x        y        -        time     m/s         Wind Speed
+    DD       x        y        -        time     deg         Wind Direction
+    ppSurf   x        y        -        time     hPa         Surface Air Pressure          
+    TaSurf   x        y        -        time     K           Surface Air Temperature       
+    TTSurf   x        y        -        time     K           Surface ... Temperature       
+    u_star   x        y        -        time     m/s         Friction Velocity
+    uT_star  x        y        -        time     Km/s        Sensible Heat Flux Scale
+    uq_star  x        y        -        time     kg/kg.m/s   Latent . Heat Flux Scale
+    us_star  x        y        -        time     kg/kg.m/s   Blowing. Snow Flux Scale
+    us_BSth  x        y        -        time     m/s         Friction Velocity Threshold before Erosion
+    z0_m     x        y        -        time     mm          Roughness Length for Momentum
+    z0_h     x        y        -        time     mm          Roughness Length for Scalars 
+    z0_eff   x        y        -        time     mm          Roughness Length for Momentum (effective)
+#
+### Soil, Ice and Snow
+    Albedo   x        y        -        time     -           Surface Albedo
+    n_SNOW   x        y        -        time     -           Number of Snow/Ice Layers
+    n__ICE   x        y        -        time     -           Number of .... Ice Layers
+    nSUPER   x        y        -        time     -           Number of Sup. Ice Layers
+    T__SIS   -        -        level2   time     K           Soil-Ice-Snow Temperature
+    dz_SIS   -        -        level2   time     m           Soil-Ice-Snow Layer Thickness
+    ro_SIS   -        -        level2   time     kg/m3       Soil-Ice-Snow Density
+    wa_SIS   -        -        level2   time     kg/kg       Soil-Ice-Snow Water Content
+    G1SNOW   -        -        level2   time     -/-         Snow Grain Dendricity/Sphericity
+    G2SNOW   -        -        level2   time     -/0.1mm     Snow Grain Sphericity/Size
+    AgSNOW   -        -        level2   time     day         Snow Age
+    HiSNOW   -        -        level2   time     -           Snow History
+    IntROFF  x        y        -        time     mmWE        Time Integrated Water Run OFF
+    IntEVAP  x        y        -        time     mmWE        Time Integrated Evapotranspiration
+    SurfWAT  x        y        -        time     mWE         Surficial Water
+    VIntWAT  x        y        -        time     mmWE        Vertically Integrated Liquid Water
+# 
+#Remarks:                    
+#--------
+#
+# -1- Put characters (#) into the first 4 rows if you don't want the variable in the output
+# 
+# -2- Defined dimensions are: x and y, 
+#                             level    = main sigma levels k
+#                             level2   =      sigma levels k+1/2
+#                             sector   = subgrid surface types                        

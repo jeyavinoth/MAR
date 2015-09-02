@@ -1,0 +1,23 @@
+      subroutine Debugg_MAR(debugm)
+
+C +------------------------------------------------------------------------+
+C |                                                                        |
+C | MAR          Debugg_MAR.f-pstar                        11-03-2004  MAR |
+C |              Verification of MAR (SISVAT) Pressure Thickness           |
+C |                                                                        |
+C +------------------------------------------------------------------------+
+
+      IMPLICIT NONE
+
+      include 'MARCTR.inc'
+      include 'MARdim.inc'
+      include 'MARgrd.inc'
+      include 'MAR_DY.inc'
+
+      character*10  debugm
+
+      write(6,6001) iterun,debugm,(10.*pstDyn(i,1),i=1,mx)
+ 6001 format(/,i6,3x,a10,3x,10f8.1,/,(22x,10f8.1))
+
+      return
+      end

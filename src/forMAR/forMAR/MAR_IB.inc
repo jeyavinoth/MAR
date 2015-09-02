@@ -1,0 +1,250 @@
+
+C +  ==========
+C +--MAR_IB.inc (05/07/2004)
+C +  ==========
+
+
+      integer    OutdyIB                            ! Number of Outputs by Day  
+      parameter (OutdyIB=1)
+
+      integer    ml                                 ! Number of *sigma* levels for atm. var.
+      parameter (ml=3)
+
+      integer    mlhh                                ! Number of outputs by Day for the X-hourly output
+      parameter (mlhh=4) ! 8 => every 3h, 24 => every hour
+      
+      integer    mlb                                ! Number of sigma *surface* levels for atm. var. (boundary layer)
+      parameter (mlb=3) ! mlb <=ml
+
+      integer    mp                                 ! Number of *pressure* levels for atm. var.
+      parameter (mp=7)
+      real  OutPLevIB(mp)                           ! Pressure levels (in hPa)
+      data  OutPLevIB/925.,850.,800.,700.,600.,500.,200./
+
+      integer    mztq                               ! Number of *height* levels for temperature and humidity
+      parameter (mztq=5)
+      real  OutZTQLevIB(mztq)                       ! Height levels (in m above surface)
+      data  OutZTQLevIB/2.,10.,25.,50.,100./ 
+
+      integer    mzuv                               ! Number of *height* levels for wind
+      parameter (mzuv=4)
+      real  OutZUVLevIB(mzuv)                       ! Height levels (in m above surface)
+      data  OutZUVLevIB/   10.,25.,50.,100./
+
+      integer    mi                                 ! Nbr snow height levels 
+      parameter (mi=18)
+c     parameter (mi=12)
+      real  OutshIB(mi)                             ! Snow height levels (in m)
+      data  OutshIB/0.00,0.05,0.10,0.20,0.30,0.40,0.50,0.65,0.80
+     .             ,1.00,1.50,2.00,3.00,5.00,7.5,10.0,15.0,20.0/
+c     data  OutshIB/0.0,0.1,0.2,0.4,0.6,0.8,1.0,2.0,3.0,5.0,10.,15./
+
+C +--Surface Mass Balance
+C +  --------------------
+
+      real     SIm_IB(mx,my,nsx)                    ! Current Snow/Ice Mass    (mmWE)
+      real     S_m_IB(mx,my,nsx)                    ! Current Snow     Mass    (mmWE)
+      real     SIh_IB(mx,my,nsx)                    ! Current Snow/Ice Height     (m)
+      real     S_h_IB(mx,my,nsx)                    ! Current Snow     Height     (m)
+      real     SSh_IB(mx,my,nsx)                    ! Current Non-Superimposed H  (m)
+
+      real     wet_IB(mx,my,nsx),wet0IB(mx,my,nsx)  ! Total                    (mmWE)
+      real     wes_IB(mx,my,nsx),wes0IB(mx,my,nsx)  ! Sublimation              (mmWE)
+      real     wee_IB(mx,my,nsx),wee0IB(mx,my,nsx)  ! Evapotranspiration       (mmWE)
+      real     wem_IB(mx,my,nsx),wem0IB(mx,my,nsx)  ! Melting                  (mmWE)
+      real     wer_IB(mx,my,nsx),wer0IB(mx,my,nsx)  ! Refreezing               (mmWE)
+      real     weu_IB(mx,my,nsx),weu0IB(mx,my,nsx)  ! Run-off                  (mmWE)
+      real     werr0IB(mx,my)                       ! Rain                     (mmWE)
+      real     wesf0IB(mx,my)                       ! Snow                     (mmWE)
+      real     wecp0IB(mx,my)                       ! Convective precip        (mmWE)
+      real     wero0IB(mx,my)                       ! RunOff                   (mmWE)
+      real     wesw0IB(mx,my,nsx)                   ! Surface Water            (mmWE)
+      real     wei0IB(mx,my,nsx)                    ! Bottom Ice Added         (mmWE)
+
+C +--Atmospheric Variables averaged
+C +  ------------------------------
+
+      real     mintIB(mx,my,ml)                     ! Min. Temp.                  (C)
+      real     maxtIB(mx,my,ml)                     ! Max. Temp.                  (C)
+      real     maxwIB(mx,my,ml)                     ! Max. wind. speed          (m/s)
+      real     ttIB(mx,my,ml)                       ! Temperature                 (C)
+      real     uuIB(mx,my,ml)                       ! x-Wind Speed component    (m/s)
+      real     vvIB(mx,my,ml)                       ! y-Wind Speed component    (m/s)
+      real     uvIB(mx,my,ml)                       ! Horizontal Wind Speed     (m/s)
+      real     wwIB(mx,my,ml)                       ! w-Wind Speed component   (cm/s)
+      real     qqIB(mx,my,ml)                       ! Specific Humidity        (g/kg)
+      real     rhIB(mx,my,ml)                       ! Specific Humidity           (%)
+      real     zzIB(mx,my,ml)                       ! Model Levels Height         (m)
+      real    pddIB(mx,my)                          ! PDD quantity                (C)    
+      real     spIB(mx,my)                          ! Surface Pressure          (hPa)
+      real     ccIB(mx,my)                          ! Cloud cover                 (-)
+      real     cuIB(mx,my)                          ! Cloud cover Up              (-)
+      real     cmIB(mx,my)                          ! Cloud cover Middle          (-)
+      real     cdIB(mx,my)                          ! Cloud cover Low             (-)
+      real    codIB(mx,my)                          ! Cloud Optical Depth         (-) 
+      real     qwIB(mx,my)                          ! Cl Dropplets Concent.   (kg/kg)
+      real     qiIB(mx,my)                          ! Cl Ice Crystals Concent.(kg/kg)
+      real     qsIB(mx,my)                          ! Snow Flakes Concent.    (kg/kg)
+      real     qrIB(mx,my)                          ! Rain Concentration      (kg/kg)
+      real    wvpIB(mx,my)                          ! Water Vapour Path       (kg/m2)
+      real    cwpIB(mx,my)                          ! Condensed Water Path    (kg/m2)
+      real    iwpIB(mx,my)                          ! Ice Water Path          (kg/m2)     
+      real    pblIB(mx,my,nsx)                      ! height of the Primary and Secondary Seeing Layer (m)
+
+C +--Atmospheric Variables on surface levels (boundary layer)
+C +  --------------------------------------------------------
+
+      real     ttbIB(mx,my,mlb)                     ! Temperature                 (C)
+      real     txbIB(mx,my,mlb)                     ! Temperature                 (C)
+      real     tnbIB(mx,my,mlb)                     ! Temperature                 (C)
+      real     qqbIB(mx,my,mlb)                     ! Specific Humidity        (g/kg)
+      real     uubIB(mx,my,mlb)                     ! x-Wind Speed component    (m/s)
+      real     vvbIB(mx,my,mlb)                     ! y-Wind Speed component    (m/s)
+      real     uvbIB(mx,my,mlb)                     ! Horizontal Wind Speed     (m/s)
+      real     zzbIB(mx,my,mlb)                     ! Model Levels Height         (m)
+
+      real     timehIB    (mlhh)                     ! Time
+      real     sphIB(mx,my,mlhh)                     ! Surface pressure          (hPa)
+      real     sthIB(mx,my,mlhh)                     ! Surface temperature         (C)
+      real     tthIB(mx,my,mlhh)                     ! Temperature                 (C)
+      real     txhIB(mx,my,mlhh)                     ! Temperature                 (C)
+      real     txhIB0(mx,my)                         ! Temperature                 (C)
+      real     tnhIB(mx,my,mlhh)                     ! Temperature                 (C)
+      real     tnhIB0(mx,my)                         ! Temperature                 (C)
+      real     qqhIB(mx,my,mlhh)                     ! Specific Humidity        (g/kg)
+      real     uuhIB(mx,my,mlhh)                     ! x-Wind Speed component    (m/s)
+      real     vvhIB(mx,my,mlhh)                     ! y-Wind Speed component    (m/s)
+      real     swdhIB(mx,my,mlhh)                    ! Shortwave inc. Rad.      (W/m2)
+      real     lwdhIB(mx,my,mlhh)                    ! Longwave  inc. Rad.      (W/m2)
+      real     lwuhIB(mx,my,mlhh)                    ! Longwave  out. Rad.      (W/m2)
+      real     shfhIB(mx,my,mlhh)                    ! Sensible  Heat           (W/m2)
+      real     lhfhIB(mx,my,mlhh)                    ! Latent    Heat           (W/m2)
+      real     alhIB(mx,my,mlhh)                     ! Albedo (temporal mean)      (-)
+      real     prhIB(mx,my,mlhh)                     ! Precipitation            (mmWE)
+      real          prh0IB(mx,my)                    ! Precipitation            (mmWE)
+      real     snfhIB(mx,my,mlhh)                    ! Snowfall                 (mmWE)
+      real          snfh0IB(mx,my)                   ! Snowfall                 (mmWE)
+      real     clhIB(mx,my,mlhh)                     ! Cloud Fraction              (-)
+      real     mehIB(mx,my,mlhh)                     ! Surface Melt             (mmWE)
+      real        meh0IB(mx,my)                      ! Surface Melt             (mmWE)
+      real     lwc1mhIB(mx,my,mlhh)                  ! Total Liquid Water Content to 1m (kg/m2)
+      real     lwc2mhIB(mx,my,mlhh)                  ! Total Liquid Water Content to 2m (kg/m2)
+
+
+C +--Atmospheric Variables averaged on pressure levels
+C +  -------------------------------------------------
+
+      real     nbpIB(mx,my,mp)                      ! Count number of valid data on pressure levels
+      real     ttpIB(mx,my,mp)                      ! Temperature on pressure levels                (C)
+      real     qqpIB(mx,my,mp)                      ! Specific Humidity on pressure levels       (g/kg)
+      real     zzpIB(mx,my,mp)                      ! Model Levels Height on pressure levels        (m)
+      real     uupIB(mx,my,mp)                      ! x-Wind Speed component on pressure levels   (m/s)
+      real     vvpIB(mx,my,mp)                      ! y-Wind Speed component on pressure levels   (m/s)
+      real     uvpIB(mx,my,mp)                      ! Horizontal Wind Speed on pressure levels    (m/s)
+      
+      real   tairDYp(mx,my,mp)                      ! real temperature on pressure levels           (K)
+      real   gplvDYp(mx,my,mp)                      ! Geopotential on pressure levels           (= g z)
+      real     qvDYp(mx,my,mp)                      ! Specific Humidity on pressure levels      (kg/kg)
+      real   uairDYp(mx,my,mp)                      ! x-Wind Speed component on pressure levels   (m/s)
+      real   vairDYp(mx,my,mp)                      ! y-Wind Speed component on pressure levels   (m/s)
+
+
+C +--Atmospheric Variables averaged on height levels
+C +  -----------------------------------------------
+      real     ttzIB(mx,my,mztq)                    ! Temperature on height levels                  (C)
+      real     qqzIB(mx,my,mztq)                    ! Specific Humidity on height levels         (g/kg)
+      real     uuzIB(mx,my,mzuv)                    ! x-Wind Speed component on height levels     (m/s)
+      real     vvzIB(mx,my,mzuv)                    ! y-Wind Speed component on height levels     (m/s)
+      real     uvzIB(mx,my,mzuv)                    ! Horizontal Wind Speed on height levels      (m/s)
+      
+      real     ttzIB_0(mx,my,mztq)                  ! Temperature on height levels                  (C)
+      real     qqzIB_0(mx,my,mztq)                  ! Specific Humidity on height levels         (g/kg)
+      real     uuzIB_0(mx,my,mzuv)                  ! x-Wind Speed component on height levels     (m/s)
+      real     vvzIB_0(mx,my,mzuv)                  ! y-Wind Speed component on height levels     (m/s)
+      real     uvzIB_0(mx,my,mzuv)                  ! Horizontal Wind Speed on height levels      (m/s)
+
+C +--Surface Variables averaged
+C +  --------------------------
+
+      real     swdIB(mx,my)                         ! Shortwave inc. Rad.      (W/m2)
+      real     swuIB(mx,my)                         ! Shortwave out. Rad.      (W/m2)
+      real     lwdIB(mx,my)                         ! Longwave  inc. Rad.      (W/m2)
+      real     lwuIB(mx,my)                         ! Longwave  out. Rad.      (W/m2)
+      real     sunIB(mx,my)                         ! Sunshine (SWD>120)          (s)
+      real     swdtIB(mx,my)                        ! TOA Shortwave inc. Rad.  (W/m2)
+      real     swutIB(mx,my)                        ! TOA Shortwave out. Rad.  (W/m2)
+      real     lwutIB(mx,my)                        ! TOA  Longwave out. Rad.  (W/m2)
+      real     shfIB(mx,my)                         ! Sensible  Heat           (W/m2)
+      real     lhfIB(mx,my)                         ! Latent    Heat           (W/m2)
+      real     alIB(mx,my)                          ! Albedo (temporal mean)      (-)
+      real     al1IB(mx,my,nsx)                     ! Albedo (SW out/SW in)       (-)
+      real     al2IB(mx,my,nsx)                     ! Albedo (temporal mean)      (-)
+      real     frvIB(mx,my,nsx)                     ! ifraTV (temporal mean)      (-)
+      real     stIB(mx,my)                          ! Surface Temperature         (C)
+      real     st2IB(mx,my,nsx)                     ! Surface Temperature         (C)
+      real     z0IB(mx,my,nsx)                      ! Roughness length for Moment.(m)
+      real     r0IB(mx,my,nsx)                      ! Roughness length for Heat   (m)
+      real     uusIB(mx,my,nsx)                     ! Friction Velocity         (m/s)
+      real     utsIB(mx,my,nsx)                     ! Sfc Pot. Tp. Turb. Flux (K.m/s)
+      real     uqsIB(mx,my,nsx)                     ! Water Vapor Flux    (kg/kg.m/s)
+      real     ussIB(mx,my,nsx)                     ! Blowing Snow Flux   (kg/kg.m/s)
+      real     sltIB(mx,my,nsx,nsol+1)              ! Soil Temperature            (C)
+      real     slqIB(mx,my,nsx,nsol+1)              ! Soil Humidity Content    (g/kg)
+      real     slqcIB(mx,my,nsx)                    ! Total Soil Humidity Content (g/kg)
+      real     slqmIB(mx,my,nsx)                    ! Max Soil Humidity Content (g/kg)
+      real     sicIB(mx,my)                         ! SIC                         (-)
+
+      real     alb1IB(mx,my),as1_IB(mx,my)  
+      real     alb2IB(mx,my),as2_IB(mx,my)  
+      real     alb3IB(mx,my),as3_IB(mx,my)  
+
+C + *CL*
+      real gradTIB(mx,my), maxgrTIB(mx,my), mingrTIB(mx,my)
+      real gradQIB(mx,my), maxgrQIB(mx,my), mingrQIB(mx,my)
+      real tt_intIB(mx,my,mw), qq_intIB(mx,my,mw)
+
+
+C +--Snow pack Variables averaged
+C +  ----------------------------
+
+      real     g1IB(mx,my,nsx,mi)                    ! g1                         (-)
+      real     g2IB(mx,my,nsx,mi)                    ! g2                         (-)
+      real     roIB(mx,my,nsx,mi)                    ! Density                (kg/m3)
+      real     tiIB(mx,my,nsx,mi)                    ! Temperature                (C)
+      real     waIB(mx,my,nsx,mi)                    ! Water Content              (%)  
+      real     zn0IB(mx,my,nsx),zn1IB(mx,my,nsx)     ! Snow Height                (m)
+      real     zn2IB(mx,my,nsx),zn3IB(mx,my,nsx)     !                                
+      real     mb0IB(mx,my,nsx),mbIB (mx,my,nsx)     ! Mass Balance            (mmWE)
+
+      integer  itrdIB 
+
+      common /srfimb/ wet_IB, wet0IB, wes_IB, wes0IB, wem_IB, wem0IB
+     .              ,wesw0IB, wer_IB, wer0IB,werr0IB,wesf0IB, wei0IB
+     .              ,wero0IB, mintIB, maxtIB,   ttIB,   uuIB,   vvIB
+     .              ,   qqIB,  pddIB,  slqIB,  swdIB,  lwdIB,  lwuIB  
+     .              ,  shfIB,  lhfIB,   ccIB,  codIB,  al1IB,  al2IB 
+     .              ,   g2IB,   g1IB,   roIB,   tiIB,   waIB,  zn0IB
+     .              ,  mb0IB,   mbIB,  zn1IB,  zn2IB,  zn3IB,   spIB  
+     .              ,   stIB,   z0IB,   r0IB,  uusIB,  utsIB,  uqsIB  
+     .              ,  ussIB,  sltIB,   qwIB,   qiIB,   qsIB,   qrIB
+     .              ,   zzIB, wee0IB, wee_IB, weu0IB, weu_IB,   wwIB
+     .              , SIm_IB, SIh_IB, S_m_IB, S_h_IB, SSh_IB,  sunIB
+     .              ,  frvIB,   uvIB,  ST2IB,   alIB,  nbpIB,  swuIB
+     .              ,  ttpIB,  qqpIB,  zzpIB,  uupIB,  vvpIB,  uvpIB
+     .              ,  ttzIB,  qqzIB,  uuzIB,  vvzIB,  uvzIB,wecp0IB 
+     .              ,  ttbIB,  qqbIB,  uubIB,  vvbIB,  uvbIB,   rhIB
+     .              , maxwIB,   cuIB,   cmIB,   cdIB,  sicIB, prh0IB
+     .              ,  sphIB,  tthIB,  qqhIB,  uuhIB,  vvhIB, swdhIB
+     .              , lwdhIB, shfhIB, lhfhIB,  alhIB,  prhIB,  clhIB
+     .              ,  mehIB, meh0IB,timehIB, slqcIB, slqmIB, swdtIB
+     .              , swutIB, lwutIB,  wvpIB,  cwpIB,  iwpIB,  pblIB
+     .              , snfhIB, snfh0IB, sthIB, lwc1mhIB, lwc2mhIB
+     .              , lwuhIB, as1_IB, alb1IB, as2_IB, alb2IB
+     .              , as3_IB, alb3IB,  txhIB,  tnhIB, txhIB0, tnhIB0              
+     .              , gradTIB, maxgrTIB, mingrTIB !*CL*
+     .              , gradQIB, maxgrQIB, mingrQIB !*CL*
+     .              , tt_intIB, qq_intIB !*CL*
+
+      common /srfimt/ itrdIB                      
+
+     

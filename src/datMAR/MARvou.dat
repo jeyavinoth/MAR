@@ -1,0 +1,95 @@
+#---*--------*--------*--------*--------*--------*-----------*---------------------------MAR(NetCDF/IDL)-+
+#    Variable ---------Dimensions---------------- Unites      Nom complet (description)
+#---*--------1--------2--------3--------4--------*-----------*-------------------------------------------+
+    year     -        -        -        time     YYYY        Date, as year
+    date     -        -        -        time     MMDDHH      Date, as month(MM), day(DD), hour(HH)
+    lon      x        y        -        -        degrees     Longitude
+    lat      x        y        -        -        degrees     Latitude
+    sh       x        y        -        -        m           Surface Height 
+    isol     x        y        -        -        -           Surface Type                         
+#   uairDY   x        y        level    time     m/s         x-Wind Speed component
+#   vairDY   x        y        level    time     m/s         y-Wind Speed component
+#   wairDY   x        y        level    time     cm/s        Vertical Wind Speed
+#   tairDY   x        y        level    time     K           Real Temperature
+#   qvDY     x        y        level    time     Kg/Kg       Specific Humidity
+#   zzDY     x        y        level    time     m           Model Levels Height
+    pstar    x        y        -        time     kPa         Pressure Tickness
+#    
+#-------------------------------------------------------------------------------------------------------+
+#
+#SL hmelSL   x        y        -        time     m(water)    Cumulative Snowmelt Height
+#SL Ta2mSL   x        y        -        time     K           2-m air Temperature
+#SL TminSL   x        y        -        time     K           2-m air Min. Temperature
+#SL TmaxSL   x        y        -        time     K           2-m air Max. Temperature
+    tairSL   x        y        -        time     K           Extrapolation of Tempature to the Surface
+#   tsrfSL   x        y        sector   time     K           Surface Temperature
+    albeSL   x        y        -        time     K           Albedo
+    Clouds   x        y        -        time     -           Cloudiness
+#
+#-------------------------------------------------------------------------------------------------------+
+#
+#   hsenSL   x        y        -        time     W/m2        Surface Sensible Heat Flux 
+#   hlatSL   x        y        -        time     W/m2        Surface Latent   Heat Flux
+#   SL_z0    x        y        sector   time     m           Roughness length for Momentum
+#   SL_r0    x        y        sector   time     m           Roughness length for Heat
+#   SLsrfl   x        y        sector   time     -           Sector Fraction
+#   SLuusl   x        y        sector   time     m/s         Friction Velocity
+#   SLutsl   x        y        sector   time     K.m/s       Surface Potential Temperature Turbulent Flux
+#   SLuqsl   x        y        sector   time     kg/kg.m/s   Water Vapor Flux from Surface
+#   SLussl   x        y        sector   time     kg/kg.m/s   Blowing Snow Flux from Surface
+    RadOLR   x        y        -        time     W/m2        Outgoing Longwave Radiation 
+    RadSol   x        y        -        time     W/m2        SWD
+    Rad_IR   x        y        -        time     W/m2        LWD
+#
+#-------------------------------------------------------------------------------------------------------+
+#
+#   ect_TE   x        y        level2   time     m2/s2       Turbulent kinetic energy
+#   eps_TE   x        y        level2   time     m2/s3       dissipation of T.K.E. 
+#
+#-------------------------------------------------------------------------------------------------------+
+#
+#TU TUkvm    x        y        level    time     m2/s        Vertical Diffusion Coefficient for Momentum
+#TU TUkvh    x        y        level    time     m2/s        Vertical Diffusion Coefficient for Heat
+#
+#-------------------------------------------------------------------------------------------------------+
+#
+#   wstar    x        y        -        time     m/s         Friction Velocity (wstar)
+#CA dqv_CA   x        y        level    time     K/day       Convective Water Vapor Variation
+#CA dpktCA   x        y        level    time     K/day       Convective Temperature Variation
+#
+#HW qwHY     x        y        level    time     Kg/Kg       Cloud Dropplets Concentration
+#HW qiHY     x        y        level    time     Kg/Kg       Cloud Ice Crystals Concentration
+#HW qsHY     x        y        level    time     Kg/Kg       Snow Flakes Concentration
+#HW qrHY     x        y        level    time     Kg/Kg       Rain Concentration
+#   QwQi     x        y        level    time     Kg/Kg       Cloud Parcel Concentration
+#   QrQs     x        y        level    time     Kg/Kg       Hydrometeors Concentration
+    rainHY   x        y        -        time     m(water)    Integrated Total      Rain
+    rainCA   x        y        -        time     m(water)    Integrated Convective Rain
+    crysHY   x        y        -        time     m(water)    Integrated Precipited Ice
+    snowHY   x        y        -        time     m(water)    Integrated Precipited Ice Snow
+    snowCA   x        y        -        time     m(water)    Integrated Convective Ice Snow
+    EvapoT   x        y        -        time     m(water)    Evapotranspiration
+#   Draing   x        y        -        time     m(water)    Run OFF Intensity 
+    RunOFF   x        y        -        time     m(water)    RunOFF
+    OptDep   x        y        -        time     -           Cloud Optical Depth
+#
+#-------------------------------------------------------------------------------------------------------+
+#
+#DY qsatDY   x        y        level    time     kg/kg       Saturation Specific Humidity 
+#HY hlatHY   x        y        level    time     K/s         Latent Heat Release in Cloud
+#HY qdivHY   x        y        level    time     kg/kg.s     Water Vapor Divergence
+#PO hatmPO   x        y        -        time     W/m2        Total Atmospheric Heat Flux
+#PO hfraPO   x        y        -        time     m           Frazil Ice Thickness
+#PO aicePO   x        y        -        time     -           Solid  Ice Fraction
+#PO hicePO   x        y        -        time     m           Solid  Ice Thickness
+#PO hiavPO   x        y        -        time     m           Solid  Ice Thickness (average)
+# 
+#Remarks:                    
+#--------
+#
+# -1- Put characters (#) into the first 4 rows if you don't want the variable in the output
+# 
+# -2- Defined dimensions are: x and y, 
+#                             level    = main sigma levels k
+#                             level2   =      sigma levels k+1/2
+#                             sector   = subgrid surface types                        

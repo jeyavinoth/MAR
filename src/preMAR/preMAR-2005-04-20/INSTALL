@@ -1,0 +1,54 @@
+#! /bin/sh
+#################################################################
+# INSTALLATION du MAR pour differents Systemes d'Exploitation   
+#                                     Processeurs
+#################################################################
+#
+LABO=`echo n` 
+Linu=`echo n` 
+echo    "Processor Name:             (Alpha  .or.  Intel):"
+read     local_install
+#
+######################## HPux
+if test $local_install = HPux
+then
+   LABO=`echo y` 
+   echo "System on Workstations       using HPux   System"
+   cp -fp lib_HP/* $HOME/lib/.
+fi
+#
+######################## Alpha
+if test $local_install = Alpha
+then
+   LABO=`echo y` 
+   echo "System on Workstations       using Alpha  System"
+fi
+#
+######################## Intel
+if test $local_install = Intel
+then
+   LABO=`echo y` 
+   Linu=`echo y` 
+   echo "System on Personal Computers using Intel  System"
+   cp -fp 3D_IDL/dir_UN/libUN2.a---$local_install 3D_IDL/libUN2.a
+   cp -fp  ECgrib/Grib2Ascii/wgrib_$local_install ECgrib/Grib2Ascii/wgrib
+fi
+#
+######################## ALL
+if test $LABO = y
+then
+   cp -fp preMAR/netcdf.inc               netcdf.inc
+   cp -fp preMAR/VERcod-$local_install           VERcod
+   cp -fp preMAR/VERcod-$local_install    preMAR/VERcod
+   cp -fp preMAR/MAR_pp-$local_install           MAR_pp
+   cp -fp preMAR/MAR_pp-$local_install    preMAR/MAR_pp
+   cp -fp libMIn/MARINP.x-$local_install  libMIn/MARINP.x
+   cp -fp 3D_IDL/dir_UN/libUN.x---$local_install 3D_IDL/libUN.x
+   cp -fp 3D_IDL/dir_UN/libUN.a---$local_install 3D_IDL/libUN.a
+   cp -fp 1D_Gks/MaGks1-$local_install    1D_Gks/MaGks1
+#
+   touch INSTALL
+else
+   echo "System NOT DEFINED"
+fi
+#################################################################

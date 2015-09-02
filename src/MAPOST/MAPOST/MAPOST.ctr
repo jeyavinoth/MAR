@@ -1,0 +1,22 @@
+----|----1----|----2----|---------------------MAPOST---control-file------
+------------------------+-----------------------------------+------------
+ECM                     | Large-Scale model (ECM, LMz) = for future use  
+MAR                     | Regional model (MAR)                           
+GRN                     | Specific study (WEU, GRN, ANT, AFW...)         
+------------------------+-----------------------------------+------------
+GR44                                                  | Run Name   
+------------------------+-----------------------------------+------------
+1991,05,01,00           | Start date as YYYY,MM,DD,HH          
+  1,00                  | Run lenght as DDD,HH                      
+06                      | Step  as HH                                    
+------------------------|------------------------------------------------
+1                       | Map type (0=polar,1=stereo,2=lambert)          
+------------------------|------------------------------------------------
+T                       | Compute horiz. maps+averages / dynamics  (F/T) 
+F                       |         station observations (surface)   (F/T) 
+T                       |         local impact of boundaries (MKE) (F/T) 
+T                       |         vertical profiles of RLS-MAR bias(F/T) 
+T                       |         Surface + misc. values           (F/T) 
+T                       |         Surface air temp. & precipitation(F/T) 
+------------------------|------------------------------------------------
+____|____1____|____2____|_____________________MAPOST___control_file______
