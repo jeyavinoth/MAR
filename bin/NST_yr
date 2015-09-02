@@ -1,0 +1,45 @@
+#!/bin/bash
+
+. $HOME/MAR/bin/INI.ctr
+
+SIM=$1
+YYYY1=$2
+
+[ $# -eq 0 ]          && echo "NST_yr SIM YYYY1 YYYY2" && exit 1
+[ ${YYYY1} -le 1850 ] && echo "NST_yr SIM YYYY1 YYYY2" && exit 1
+
+                                          YYYY2=$2
+[ ${#3} -eq 4 ] && [ ${3} -ge $YYYY1 ] && YYYY2=$3
+
+
+for YYYY in `seq $YYYY1 $YYYY2` ; do
+
+ for i in `seq 1 9` ; do
+  NST $SIM $YYYY 0$i 01
+ done
+ for i in `seq 10 12` ; do
+  NST $SIM $YYYY $i 01
+ done
+
+[ $YYYY -ge 2100 ]                       && YY=$(( ${YYYY} - 2100 ))
+[ $YYYY -lt 2100 ] && [ $YYYY -ge 2000 ] && YY=$(( ${YYYY} - 2000 )) 
+[ $YYYY -lt 2000 ] && [ $YYYY -ge 1900 ] && YY=$(( ${YYYY} - 1900 ))
+[ $YYYY -lt 1900 ] && [ $YYYY -ge 1800 ] && YY=$(( ${YYYY} - 1800 ))
+
+[ ${#YY} -eq 1 ] && YY="0"${YY}
+
+
+cd $SIMdir/$SIM/input/NESTOR/run
+
+
+# !+CA+! USE sub_NST_yr GRd yyyy INSTEAD
+if [ $WLDreg != "AN" ] ; then
+ for file in NST_${SIM}.${YY}* ; do
+  echo   $file
+  qsub ./$file
+ done
+fi
+
+done
+
+

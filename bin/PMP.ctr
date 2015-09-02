@@ -1,0 +1,57 @@
+#!/bin/ksh
+# 
+# Emilie Vanvyve - v3.1 - 06.07.2006 (05.01.2004)
+#                                                                               
+# NAME                                                                          
+#                                                                               
+#   PMP.ctr - parameters for the PMP script                                     
+#                                                                               
+# SYNOPSIS                                                                      
+#                                                                               
+#   <nihil>                                                                     
+#                                                                               
+# OPERANDS                                                                      
+#                                                                               
+#   <nihil>                                                                     
+#                                                                               
+# DESCRIPTION                                                                   
+#                                                                               
+#   The PMP.ctr ("PMP control") file contains the user's parameter for running  
+#   the MAR post-processing (MAPOST) for a MAR simulation.                      
+#                                                                               
+
+
+#===============================================================================
+#                           MAPOST OPTIONS (MAPOST.ctr)                         
+#                                                                               
+# Space and time                                                                
+#                                                                               
+
+lsc=ECM                # large-scale model                            [ECM, LMz]
+stu=GRD                # specific region study (RedDefs)        [WEU/ANT/GRD...]
+dt="06"                # time step of post-processing                       [hh]
+
+#                                                                               
+# Computation                                                                   
+#                                                                               
+
+HMD=T                  # compute horizontal maps+average / dynamics        [T/F]
+SOS=F                  # compute station observations (surface)            [F/T]
+LIB=T                  # compute locat impact of boundaries (MKE)          [T/F]
+VPB=T                  # compute vertical profiles of LSC-MAR bias         [T/F]
+SMV=T                  # compute surface + miscellaneous values            [T/F]
+STP=T                  # compute surface air temperature and precipitation [T/F]
+
+#                                                                               
+#-------------------------------------------------------------------------------
+#                           TECHNICAL INFORMATIONS                              
+#                                                                               
+
+pmpzip=y                       # gzip MAPOST output files                  [y/n]
+marzip=y                       # MAR files to post-process are gzipped     [y/n]
+lsczip=y                       # LSC files to post-process are gzipped     [y/n]
+
+walltime=2                     # job duration in PBS queue                   [h]
+
+#                                                                               
+#===============================================================================

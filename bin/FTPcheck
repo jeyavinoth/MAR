@@ -1,0 +1,50 @@
+#!/bin/bash
+
+area=GR
+
+ssh_options="-C -o ConnectTimeout=30 -o ConnectionAttempts=100"
+
+export PATH="$PATH:/usr/bin:/bin:/sbin:/usr/local/bin:$HOME/bin:$HOME/util/bin:$HOME/MAR/bin"
+
+##################################################
+
+. $HOME/MAR/bin/INI.ctr
+
+cd $FTPDIR
+
+##################################################
+
+ping -q -c 2 $stock &> /dev/null
+
+[ $? -ne 0 ] && echo "ERROR ping to $stock" && exit 1
+
+###################################################
+
+for file in ONE.*.nc.gz ICE.*.nc.gz MAR.*.nc.gz ; do
+ if [ -f $file ] ; then
+  sim=${file:4:3}
+  dom=${area}${file:4:1}
+  yyyy=${file:8:4}
+  ssh $ssh_options       ${ustock}@${stock} mkdir -p $STKmar/$dom/$sim/$yyyy &>/dev/null
+  scp $ssh_options $file ${ustock}@${stock}:$STKmar/$dom/$sim/$yyyy
+  [ $? -eq 0 ] && rm -f $file
+ fi
+done
+
+###################################################
+
+for file in MARsim_${l}* ; do
+ if [ -f $file ] ; then
+  sim=${file:7:3}
+  dom=${area}${file:7:1}
+  yyyy=${file:11:4}
+  ssh $ssh_options       ${ustock}@${stock} mkdir -p $STKmar/$dom/input/MARsim/$sim/$yyyy  &>/dev/null
+  scp $ssh_options $file ${ustock}@${stock}:$STKmar/$dom/input/MARsim/$sim/$yyyy
+  [ $? -eq 0 ] && rm -f $file
+ fi
+done
+
+###################################################
+
+exit 0
+

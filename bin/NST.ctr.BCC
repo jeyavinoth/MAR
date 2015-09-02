@@ -1,0 +1,154 @@
+#!/bin/ksh
+#
+# v3.1 - 23.06.2006 (03.09.2003)
+#                                                                               
+# NAME                                                                          
+#                                                                               
+#   NST.ctr - parameters for the NST script                                     
+#                                                                               
+# SYNOPSIS                                                                      
+#                                                                               
+#   <nihil>                                                                     
+#                                                                               
+# OPERANDS                                                                      
+#                                                                               
+#   <nihil>                                                                     
+#                                                                               
+# DESCRIPTION                                                                   
+#                                                                               
+#   The NST.ctr ("NST control") file contains the user's parameter for running  
+#   the MAR pre-processing (NESTOR) on a new MAR domain of simulation.          
+#                                                                               
+
+
+#===============================================================================
+#                            NESTOR OPTIONS (NSTing.ctr)                        
+#                                                                               
+# Nesting                                                                       
+#                                                                               
+
+n01=1             # 1: Nst field comput. / 2: Rain disagr. / 3: Wind gust estim.
+n03=BCC           # Large-scale model (e.g. E15, E40, MAR, CM3)             [a3]
+n02="rcp85"       # CMIP5 experiment
+n04=MAR           # Nested model, e.g. MAR, EUR                             [a3]
+n05="06"          # Time interval between two forcings                      [hh]
+
+#                                                                               
+# Output                                                                        
+#                                                                               
+
+n06=T             # initial/forcing files  (*.DAT)                         [T/F]
+n07=F             # ASCII format init./for. files (MAR only)               [F/T]
+n08=F             # graphic check file     (NST*.nc)                       [T/F]
+
+#                                                                               
+# Grid                                                                          
+#                                                                               
+
+n09=T             # Spherical coordinates for LSC grid                     [T/F]
+n10=3             # Horizontal interpolation type: 1=bilinear, 3=bicubic        
+
+n11=1             # Grid: Vertical interpolation type: 1=linear, 3=cubic        
+
+#                                                                               
+# Topography source                                                             
+#                                                                               
+
+n12=T             # ETOPO data set (resol.: 5 min. )                       [T/F]
+n13=F             # GTOPO data set (resol.: 30 sec.)                   [F/T/A/a]
+ant=ANT100_cos_20 # specific topography set for Antarctica (can not be empty)                
+
+#                                                                               
+# Topography treatment                                                          
+#                                                                               
+
+n14=F             # border of constant topo. at boundaries                 [F/T]
+n15=F             # imposed LSC topo. in the const. border                 [F/T]
+n16=F             # imposed LSC topo. in the whole domain                  [F/T]
+n17=F             # zero topo.        in the const. border                 [F/T]
+n18=F             # filtering of topography                                [T/F]
+
+#                                                                               
+# Correction applied to meteo. fields                                           
+#                                                                               
+
+n19=F             # 600-hPa geopotential height                            [F/T]
+n20=T             # surface layer                                          [T/F]
+
+#                                                                               
+# Roughness length                                                              
+#                                                                               
+
+n21=F             # computed from land use datasets                        [F/T]
+
+#                                                                               
+# Vegetation cover                                                              
+#                                                                               
+
+n22=T             # land cover (IGBP)                                      [T/F]
+n23=F             # land cover (Corine) : Europe                           [F/T]
+n24=F             # of Belgium (V.d.Auwera-IRM)                            [F/T]
+
+#                                                                               
+# Vegetation fraction (select max. one option)                                  
+#                                                                               
+
+n25=F             # with NDVI index (res. 1 km)                            [F/T]
+n26=F             # with NDVI index (res. 8 km)                            [F/T]
+
+#                                                                               
+# Soil model                                                                    
+#                                                                               
+
+n27=T             # Ridder and Schayes (1997) soil model                   [T/F]
+n28=40.           # soil wetness in all layers                      [0 to 100 %]
+n29=F             # soil wetness from ECMWF fields                         [F/T]
+
+#                                                                               
+# Sea surface temperature                                                       
+#                                                                               
+
+n30=F             # Reynolds sea surface temperature                       [F/T]
+
+#                                                                               
+# Sounding                                                                      
+#                                                                               
+
+n31=F             # Simplified initialisation with sounding                [F/T]
+
+#                                                                               
+# Cloud microphysics                                                            
+#                                                                               
+
+n33=F             # Include cloud content in spec. humidity                [F/T]
+
+#                                                                               
+# Rain disaggregation                                                           
+#                                                                               
+
+n34=0             # 0: no rain disaggregation (only model fields)               
+                  # 1: disaggregation model of Sinclair (1994)                  
+                  # 2: disaggregation model of Alpert (1989)                    
+
+#                                                                               
+# Wind gust estimate method                                                     
+#                                                                               
+
+n35=1             # 1: Standard WGE method of Brasseur (2001)                   
+                  # 2: BRN method (without TKE) of Ramel (2001)                 
+                  # 3: Ratio method                                             
+
+#                                                                               
+#-------------------------------------------------------------------------------
+#                           TECHNICAL INFORMATIONS                              
+#                                                                               
+
+nstin1=y                       # NESTOR input files are gzipped (ERA...)   [y/n]
+nstou1=y                       # gzip NESTOR output files                  [y/n]
+marin1=y                       # save MAR input files (.dat/DAT, .inc)     [y/n]
+dblprc=n                       # run NESTOR in double precision            [y/n]
+
+walltime=40                    # job duration in PBS queue                   [h]
+
+#                                                                              
+#===============================================================================

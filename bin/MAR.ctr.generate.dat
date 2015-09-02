@@ -1,0 +1,101 @@
+#!/bin/bash
+#
+# v3.1 - 21.06.2006 (30.10.2003)
+#                                                                               
+# NAME                                                                          
+#                                                                               
+#   MAR.ctr - parameters for the MAR script                                     
+#                                                                               
+# SYNOPSIS                                                                      
+#                                                                               
+#   <nihil>                                                                     
+#                                                                               
+# OPERANDS                                                                      
+#                                                                               
+#   <nihil>                                                                     
+#                                                                               
+# DESCRIPTION                                                                   
+#                                                                               
+#   The MAR.ctr ("MAR control") file contains the user's parameter for making   
+#   the PBS MAR script.                                                         
+#                                                                               
+#   The MAR script copies the MAR.ctr file in the specific control directory of 
+#   the run. Any further change can be made in that copied file (other will have
+#   NO impact).                                                                 
+#                                                                               
+#   The MAR options can NOT be modified RASHLY (see below).                     
+#                                                                               
+
+#yr_360=y
+#yr_365=y       # Calendar (y/n)
+
+#ICE_only=y      # ICE*.nc only
+
+NBR_CPU=2       # Nbr of CPUS for OpenMP
+
+RCP_CMIP5=RCP85 # RCP scenario (RCP26,RCP45,RCP60,RCP85)
+
+#===============================================================================
+#                                MAR RUN OPTIONS                                
+#                                                                               
+# Global simulation: initial date     (can NOT be modified once the job on hand)
+#                                                                               
+
+d1I="01"                 # day                                              [dd]
+moI="05"                 # month                                            [mm]
+yrI="YYYY"               # year                                           [yyyy]
+
+#                                                                               
+# Global simulation: final   date     (can     be modified once the job on hand)
+#                                                                               
+
+d2F="31"                 # day                                              [dd]
+moF="08"                 # month                                            [mm]
+yrF=$(( $yrI + 0 ))      # year                                           [yyyy]
+
+#                                                                               
+# Time steps (ts)                     (can NOT be modified once the job on hand)
+#                                                                               
+
+dt="240"                  # of slow dynamics                                  [s]
+each="360"               #   output every x minutes (e.g. 20, 360)  (0=auto) [m]
+ntfast="3"               #   nb fast tss over dt                    (0=auto)    
+dtDiff="$dt"             # of diffusion      (900-1800s ; / of dt)  (0=auto) [s]
+dtPhys="$dt"             # of surf. physics  (300-600s  ; * of dt)  (0=auto) [s]
+dtRadi="3600"            # of rad. transfer  (<=40s     ; * of dt)  (0=auto) [s]
+
+#                                                                               
+# CODE options        (MUST agree with previous NST and CODE options )          
+#                     (can NOT be modified once the job in progress)            
+
+CA=T                     # convective adjustement                          [T/F]
+SV=T                     # T: SISVAT surface model / F: Deardorff surface model
+SN=T                     # snow model                                      [T/F]
+PO=F                     # polynya model                                   [T/F]
+
+
+#                                                                               
+#-------------------------------------------------------------------------------
+#                           SIMULATION DESCRIPTION                              
+#                                                                               
+# Some more informations on the simulation (comments lines must begin with ##)  
+# Those informations will be kept in the SIMdir/domain/ctrl/descr.domain file   
+#                                                                               
+
+## WAt => NDVclim=F and border of constant topo. at boundaries=T in NESTOR.
+## Opposite tested.
+
+#                                                                               
+#-------------------------------------------------------------------------------
+#                           TECHNICAL INFORMATIONS                              
+#                                                                               
+# General MAR location informations                                             
+#                                                                               
+
+nstzip=y                        # input files (< NESTOR) are gzipped       [y/n]
+marzip=y                        # gzip MAR output files                    [y/n]
+
+walltime=30                     # job duration in PBS queue                  [h]
+
+#                                                                               
+#===============================================================================

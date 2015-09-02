@@ -1,0 +1,600 @@
+#!/bin/bash                                                                     
+#
+# E. Vanvyve / X. Fettweis - 01.10.2008
+#                                                                               
+# NAME                                                                          
+#                                                                               
+#   INI - initialize a new MAR domain                                           
+#                                                                               
+# SYNOPSIS                                                                      
+#                                                                               
+#   INI domain                                                                  
+#                                                                               
+# OPERANDS                                                                      
+#                                                                               
+#   domain    the name of the new MAR domain                                    
+#             = $WLDreg + 1 letter (e.g. EU+a=EUa)                              
+#                                                                               
+# DESCRIPTION                                                                   
+#                                                                               
+#   The INI script settles all the directories and files for a new MAR domain of
+#   simulation, including NESTOR.
+#                                                                               
+
+
+#-------------------------------------------------------------------------------
+# HELP                                                                          
+#-------------------------------------------------------------------------------
+
+[ ${#1} -eq 0 ] && head -22 $0 && exit
+
+
+#-------------------------------------------------------------------------------
+#  SCRIPT INITIALISATION                                                        
+#-------------------------------------------------------------------------------
+
+#                                                                               
+# User's parameters                                                             
+#                                                                               
+
+#$0.ctr                                 
+
+tmp=`ls $0.ctr | wc -l`  #to avoid search in subdirectories
+[ $tmp -ne 1 ] && echo '@&?%! '"fatal error: $0.ctr nonexistent" && exit
+
+control=$0.ctr
+. $control
+
+#                                                                               
+# System initialisation                                                         
+#                                                                               
+
+#main script parameters values          
+
+case $cluster in (lln|linux|idris|nasa) echo ;;
+                 (*) echo '@&?%! '"script not over for $cluster" && exit ;;
+esac
+
+#arrays of blanks/hyphens/plus          
+
+i=1 ; tmp1="" ; tmp2="" ; tmp3=""
+while [ $i -le 80 ] ; do
+  tmp1="$tmp1"' '
+  blank[$i]="$tmp1"
+  tmp2="$tmp2"'-'
+  hyphen[$i]="$tmp2"
+  tmp3="$tmp3"'+'
+  plus[$i]="$tmp3"
+  i=$(( $i + 1 ))
+done
+
+#titles and errors functions            
+
+it1=0 && it2=0
+
+DAMNED () { echo ; echo '@&?%! '"${1}" ; echo "*${0#$MARbin/} aborted*" ; echo ;
+            exit ; }
+ERROR ()  { echo '@&?%! '"${1} (y/n) (n=abort)" ;
+            read answer ; abort="*${0#$MARbin/} aborted*" ;
+            case $answer in (y) echo ;; (n|*) echo "$abort" && echo && exit ;;
+            esac ; }
+CHOICE () { echo ; echo "${1} (y/n)" ; answer=o ; read answer ;
+            case $answer in ([!yn]) DAMNED "wrong answer!" ;; esac ; }
+TITLE0 () { echo ; echo "${plus[80]}" ;
+            echo "${plus[39-${#1}/2]} ${1} ${plus[39-${#1}/2]}" ;
+            echo "${plus[80]}" ; echo ; }
+TITLE1 () { it1=$(( $it1 + 1 )) ; it2=0 ;
+            echo ; echo "- $it1 - ${1} ${hyphen[73-${#1}]}" ; }
+TITLE2 () { it2=$(( $it2 + 1 )) ;
+            echo ; echo "- $it1.$it2 - ${1} ${hyphen[31-${#1}]}" ; echo ; }
+REMARK () { echo "-> ${1}..." ; }
+
+#stock function: automatised ftp on the mass storage system for linux and lln
+
+  #usage: aftp put [local-dir/]local-file   [[remote-dir/]remote-file]
+  #       aftp get [remote-dir/]remote-file [[local-dir/]local-file]  
+  #       aftp mkdir remode-dir                                       
+  #       ...                                                         
+
+aftp () { (
+ftp -n -v <<EOF
+open $stock
+user $USER `tail $MARbin/util/password | awk '{print $1}'`
+bin
+prompt
+$@
+bye
+EOF
+) > $$
+case $1 in
+  (put) [ `cat $$ | grep -c "226 File receive OK."` -ne 1 ] && return 99 || rm -f $$ ;;
+  (get) [ `cat $$ | grep -c "226 File send OK."`    -ne 1 ] && return 99 || rm -f $$ ;;
+esac ; }
+
+#stock-put function: put a file in a directory on the mass storage system
+
+  #$1 = directory of the file on home 
+  #$2 = name      of the file on home 
+  #$3 = destination directory on stock
+
+  #smput exits if an error occurred
+
+case $cluster in
+(lln)
+  smput () { aftp put $1/$2 $3/$2
+              if [ $? -ne 99 ] ; then
+                echo "smput: $1/$2 -> $3/$2"
+              else
+                DAMNED "smput: $1/$2 not -> $3/$2"
+              fi ; } ;;
+(linux|nasa)
+  if [ $stock != "none" ] ; then  #use ftp system
+  smput () { aftp put $1/$2 $3/$2
+              if [ $? -ne 99 ] ; then
+                echo "smput: $1/$2 -> $3/$2"
+              else
+                DAMNED "smput: $1/$2 not -> $3/$2"
+              fi ; }
+  else
+  smput () { cp -f  $1/$2  $3/$2
+              if [ $? -ne 99 ] ; then
+                echo "smput: $1/$2 -> $3/$2"
+              else
+                DAMNED "smput: $1/$2 not -> $3/$2"
+              fi ; }
+  fi ;;
+(idris)
+  smput () { cd $1
+              mfput  $2  $3/$2 ;
+              if [ $? -eq 0 ] ; then
+                echo "smput: $1/$2 -> $3/$2"
+              else
+                DAMNED "smput: $1/$2 not -> $3/$2"
+              fi ; } ;;
+esac
+
+
+#-------------------------------------------------------------------------------
+#  TITLE                                                                        
+#-------------------------------------------------------------------------------
+TITLE0 "ALL YOU NEED TO RUN MAR ON A NEW DOMAIN "
+
+
+#-------------------------------------------------------------------------------
+#  1 - INITIALISATION                                                           
+#-------------------------------------------------------------------------------
+TITLE1 "INITIALISATION"
+
+#                                                                               
+# Your parameters                                                               
+#                                                                               
+TITLE2 "Your parameters"
+
+  # WLDreg   = world region (GR, AN, EU, BE, ...)             
+  # domain   = domain of simulation (EUa, BEm, ...)       
+  # run name = name of the run in domain/ (a01, m16, ...) 
+
+#script argument                        
+
+usage="\nusage: INI domain"
+[ ${#1} -eq 0 ] && DAMNED "argument missing [domain]$usage"
+domain=$1
+
+#user's directory paths                 
+
+MARbin=${MARbin%/}
+SIMdir=${SIMdir%/}
+MARsrc=${MARsrc%/}
+STKmar=${STKmar%/}
+
+#world region                           
+
+case $WLDreg in
+  (EU) tmp="Europe" ;;
+  (WA) tmp="West Africa" ;;
+  (AN) tmp="Antarctica" ;;
+  (GR) tmp="Greenland" ;;
+  (BE) tmp="Belgium" ;;
+  (*)  tmp="unknown meaning" ;;
+esac
+
+#user's parameters                      
+
+echo "general world region  : $WLDreg ($tmp)"
+echo "new simulation domain : $domain"
+echo
+echo "simulations directory : $SIMdir"
+echo "MAR    code directory : $MARsrc"
+echo "MAR directory on stock: $STKmar"
+echo
+echo "cluster      : $cluster (`uname -n`)"
+echo "stock address: $stock"
+echo
+echo "<return>" ; read
+
+#                                                                               
+# Check the domain name                                                         
+#                                                                               
+TITLE2 "Check the domain name"
+
+tmp=${domain#$WLDreg}
+if [ ${domain%?} != $WLDreg -o ${#tmp} != 1 ] ; then
+  DAMNED "argument error: domain name must be \'$WLDreg\'+\'1 char.\'"
+fi
+DOMdir=$SIMdir/$domain
+UQDOMdir=$UQHOME/MAR/SIMdir/$domain
+echo "domain name: $domain"
+echo "domain path: $DOMdir"
+
+
+#-------------------------------------------------------------------------------
+#  2 - CREATING/SETTING MAR FILES AND DIRECTORIES                               
+#-------------------------------------------------------------------------------
+TITLE1 "CREATING/SETTING MAR FILES AND DIRECTORIES"
+
+#                                                                               
+# Domain directory                                                              
+#                                                                               
+TITLE2 "Domain directory"
+
+if [ ! -d $DOMdir ] ; then
+  echo "mkdir: $DOMdir"
+        mkdir  $DOMdir
+else
+  ERROR "mkdir: $DOMdir existing. Go on (flexible)?"
+fi
+
+if [ $cluster = "idris" -a ! -d $UQDOMdir ] ; then
+  echo "mkdir: $UQDOMdir"
+        mkdir  $UQDOMdir
+fi
+
+#                                                                               
+# MAR directories                                                               
+#                                                                               
+TITLE2 "Model (MAR)"
+
+#ctrl, code, run                        
+
+for dir in "code" ; do
+  if [ ! -d $DOMdir/$dir ] ; then
+    echo "mkdir: $DOMdir/$dir"
+          mkdir  $DOMdir/$dir
+  else
+    CHOICE "mkdir: $DOMdir/$dir existing. Replace it?"
+    case $answer in
+    (y) echo "rm: $DOMdir/$dir"
+           rm -rf $DOMdir/$dir
+        echo "mkdir: $DOMdir/$dir"
+              mkdir  $DOMdir/$dir ;;
+    (n) echo "$DOMdir/$dir kept intact" ;;
+    esac
+  fi
+done
+
+for dir in "ctrl" "run" ; do
+  case $cluster in
+  (idris) if [ ! -d $UQDOMdir/$dir ] ; then
+            echo "mkdir: $UQDOMdir/$dir"
+                  mkdir  $UQDOMdir/$dir
+            echo "ln: $UQDOMdir/$dir -> $DOMdir/$dir"
+                ln -s $UQDOMdir/$dir    $DOMdir/$dir
+          else
+            CHOICE "mkdir: $UQDOMdir/$dir existing. Replace it?"
+            case $answer in
+            (y) echo "rm: $UQDOMdir/$dir"
+                   rm -rf $UQDOMdir/$dir
+                echo "rm: $DOMdir/$dir"
+                   rm -rf $DOMdir/$dir
+                echo "mkdir: $UQDOMdir/$dir"
+                      mkdir  $UQDOMdir/$dir
+                echo "ln: $UQDOMdir/$dir -> $DOMdir/$dir"
+                ln -s $UQDOMdir/$dir $DOMdir/$dir ;;
+            (n) echo "$UQDOMdir/$dir kept intact" ;;
+            esac
+          fi ;;
+  (*) if [ ! -d $DOMdir/$dir ] ; then
+        echo "mkdir: $DOMdir/$dir"
+              mkdir  $DOMdir/$dir
+      else
+        CHOICE "mkdir: $DOMdir/$dir existing. Replace it?"
+        case $answer in
+         (y) echo "rm: $DOMdir/$dir"
+                rm -rf $DOMdir/$dir
+             echo "mkdir: $DOMdir/$dir"
+                   mkdir  $DOMdir/$dir ;;
+         (n) echo "$DOMdir/$dir kept intact" ;;
+        esac
+      fi ;;
+  esac
+done
+
+#input                                  
+
+case $cluster in
+(idris)
+[ ! -d $UQDOMdir/input ] && mkdir $UQDOMdir/input
+[ ! -d $DOMdir/input   ] && mkdir $DOMdir/input
+
+if [ ! -d $UQDOMdir/input/datMAR ] ; then
+
+  echo "mkdir: $UQDOMdir/input/datMAR"
+        mkdir  $UQDOMdir/input/datMAR
+  echo "cp: $MARsrc/datMAR/*.dat -> $UQDOMdir/input/datMAR/"
+    cp -fp  $MARsrc/datMAR/*.dat    $UQDOMdir/input/datMAR/
+  echo "ln: $UQDOMdir/input/datMAR -> $DOMdir/input/datMAR"
+      ln -s $UQDOMdir/input/datMAR    $DOMdir/input/datMAR
+
+else
+
+  CHOICE "mkdir: $UQDOMdir/input/datMAR existing. Replace it?"
+  case $answer in
+  (y) echo "rm: $UQDOMdir/input/datMAR"
+        rm -rf  $UQDOMdir/input/datMAR
+      echo "rm: $DOMdir/input/datMAR"
+        rm -rf  $DOMdir/input/datMAR
+      echo "mkdir: $UQDOMdir/input/datMAR"
+            mkdir  $UQDOMdir/input/datMAR
+      echo "cp: $MARsrc/datMAR/*.dat -> $UQDOMdir/input/datMAR/"
+        cp -fp  $MARsrc/datMAR/*.dat    $UQDOMdir/input/datMAR/
+      echo "ln: $UQDOMdir/input/datMAR -> $DOMdir/input/datMAR"
+          ln -s $UQDOMdir/input/datMAR    $DOMdir/input/datMAR ;;
+  (n) echo "$UQDOMdir/input/datMAR kept intact" ;;
+  esac
+fi
+
+if [ ! -d $UQDOMdir/input/MARctr ] ; then
+
+  echo "mkdir: $UQDOMdir/input/MARctr"
+        mkdir  $UQDOMdir/input/MARctr
+  echo "ln: $UQDOMdir/input/MARctr -> $DOMdir/input/MARctr"
+      ln -s $UQDOMdir/input/MARctr    $DOMdir/input/MARctr
+
+else
+
+  CHOICE "mkdir: $UQDOMdir/input/MARctr existing. Replace it?"
+  case $answer in
+  (y) echo "rm: $UQDOMdir/input/MARctr"
+        rm -rf  $UQDOMdir/input/MARctr
+      echo "rm: $DOMdir/input/MARctr"
+        rm -rf  $DOMdir/input/MARctr
+      echo "mkdir: $UQDOMdir/input/MARctr"
+            mkdir  $UQDOMdir/input/MARctr
+      echo "ln: $UQDOMdir/input/MARctr -> $DOMdir/input/MARctr"
+          ln -s $UQDOMdir/input/MARctr    $DOMdir/input/MARctr ;;
+  (n) echo "$UQDOMdir/input/MARctr kept intact" ;;
+  esac
+fi
+
+if [ ! -d $UQDOMdir/input/MARdom ] ; then
+
+  echo "mkdir: $UQDOMdir/input/MARdom"
+        mkdir  $UQDOMdir/input/MARdom
+  echo "ln: $UQDOMdir/input/MARdom -> $DOMdir/input/MARdom"
+      ln -s $UQDOMdir/input/MARdom    $DOMdir/input/MARdom
+
+else
+
+  CHOICE "mkdir: $UQDOMdir/input/MARdom existing. Replace it?"
+  case $answer in
+  (y) echo "rm: $UQDOMdir/input/MARdom"
+        rm -rf  $UQDOMdir/input/MARdom
+      echo "rm: $DOMdir/input/MARdom"
+        rm -rf  $DOMdir/input/MARdom
+      echo "mkdir: $UQDOMdir/input/MARdom"
+            mkdir  $UQDOMdir/input/MARdom
+      echo "ln: $UQDOMdir/input/MARdom -> $DOMdir/input/MARdom"
+          ln -s $UQDOMdir/input/MARdom    $DOMdir/input/MARdom ;;
+  (n) echo "$UQDOMdir/input/MARdom kept intact" ;;
+  esac
+fi
+
+;;
+
+(*)
+[ ! -d $DOMdir/input ] && mkdir $DOMdir/input
+
+if [ ! -d $DOMdir/input/datMAR ] ; then
+
+  echo "mkdir: $DOMdir/input/datMAR"
+        mkdir  $DOMdir/input/datMAR
+  echo "cp: $MARsrc/datMAR/*.dat -> $DOMdir/input/datMAR/"
+    cp -fp  $MARsrc/datMAR/*.dat    $DOMdir/input/datMAR/
+
+else
+
+  CHOICE "mkdir: $DOMdir/input/datMAR existing. Replace it?"
+  case $answer in
+  (y) echo "rm: $DOMdir/input/datMAR"
+        rm -rf  $DOMdir/input/datMAR
+      echo "mkdir: $DOMdir/input/datMAR"
+            mkdir  $DOMdir/input/datMAR
+      echo "cp: $MARsrc/datMAR/*.dat -> $DOMdir/input/datMAR/"
+        cp -fp  $MARsrc/datMAR/*.dat    $DOMdir/input/datMAR/ ;;
+  (n) echo "$DOMdir/input/datMAR kept intact" ;;
+  esac
+fi
+
+if [ ! -d $DOMdir/input/MARctr ] ; then
+
+  echo "mkdir: $DOMdir/input/MARctr"
+        mkdir  $DOMdir/input/MARctr
+
+else
+
+  CHOICE "mkdir: $DOMdir/input/MARctr existing. Replace it?"
+  case $answer in
+  (y) echo "rm: $DOMdir/input/MARctr"
+        rm -rf  $DOMdir/input/MARctr
+      echo "mkdir: $DOMdir/input/MARctr"
+            mkdir  $DOMdir/input/MARctr ;;
+  (n) echo "$DOMdir/input/MARctr kept intact" ;;
+  esac
+fi
+
+if [ ! -d $DOMdir/input/MARdom ] ; then
+
+  echo "mkdir: $DOMdir/input/MARdom"
+        mkdir  $DOMdir/input/MARdom
+
+else
+
+  CHOICE "mkdir: $DOMdir/input/MARdom existing. Replace it?"
+  case $answer in
+  (y) echo "rm: $DOMdir/input/MARdom"
+        rm -rf  $DOMdir/input/MARdom
+      echo "mkdir: $DOMdir/input/MARdom"
+            mkdir  $DOMdir/input/MARdom ;;
+  (n) echo "$DOMdir/input/MARdom kept intact" ;;
+  esac
+fi
+
+;;
+
+esac
+
+#                                                                               
+# Pre-processing tool (NESTOR)                                                  
+#                                                                               
+TITLE2 "Pre-processing tool (NESTOR)"
+
+#directories and files
+
+if [ ! -d $DOMdir/input/NESTOR ] ; then
+  echo "mkdir: $DOMdir/input/NESTOR"
+        mkdir  $DOMdir/input/NESTOR
+  echo "mkdir: $DOMdir/input/NESTOR/ctrl"
+        mkdir  $DOMdir/input/NESTOR/ctrl
+  echo "mkdir: $DOMdir/input/NESTOR/run"
+        mkdir   $DOMdir/input/NESTOR/run
+  echo "cp: $MARsrc/NESTOR/NESTOR/* -> $DOMdir/input/NESTOR/"
+   cp -rfp  $MARsrc/NESTOR/NESTOR/*    $DOMdir/input/NESTOR/
+else
+  CHOICE "mkdir: $DOMdir/input/NESTOR existing. Replace it?"
+  case $answer in
+  (y) echo "rm: $DOMdir/input/NESTOR"
+      rm -rf  $DOMdir/input/NESTOR
+      echo "mkdir: $DOMdir/input/NESTOR"
+            mkdir  $DOMdir/input/NESTOR
+      echo "mkdir: $DOMdir/input/NESTOR/ctrl"
+            mkdir  $DOMdir/input/NESTOR/ctrl
+      echo "mkdir: $DOMdir/input/NESTOR/run"
+            mkdir  $DOMdir/input/NESTOR/run
+      echo "cp: $MARsrc/NESTOR/NESTOR/* -> $DOMdir/input/NESTOR/"
+       cp -rfp  $MARsrc/NESTOR/NESTOR/*    $DOMdir/input/NESTOR/ ;;
+  (n) echo "$DOMdir/input/NESTOR kept intact" ;;
+  esac
+fi
+rm -f  $DOMdir/input/NESTOR/NSTing.ctr
+rm -f  $DOMdir/input/NESTOR/LSCfil.dat
+
+#compile?
+
+echo "cp: $MARbin/COMPILE -> $DOMdir/input/NESTOR/src/"
+cp -fp    $MARbin/COMPILE    $DOMdir/input/NESTOR/src/
+
+CHOICE "compile NESTOR? (check first MARgrd.ctr and src/NSTdim.inc)"
+case $answer in
+(y) cd $DOMdir/input/NESTOR/src
+    chmod 700 COMPILE
+    ./COMPILE NST ;;
+(n) echo "NESTOR not compiled (manually: launch the script NESTOR/src/COMPILE)" ;;
+esac
+
+#                                                                               
+# MAPOST directory                                                              
+#                                                                               
+TITLE2 "Post-processing tool (MAPOST)"
+
+[ ! -d $DOMdir/post ] && mkdir $DOMdir/post
+
+if [ -d $MARsrc/MAPOST/MAPOST ] ; then
+
+  if [ ! -d $DOMdir/post/MAPOST ] ; then  #make/copy directories and files
+    echo "mkdir: $DOMdir/post/MAPOST"
+          mkdir  $DOMdir/post/MAPOST
+    echo "mkdir: $DOMdir/post/MAPOST/run"
+          mkdir  $DOMdir/post/MAPOST/run
+    echo "cp: $MARsrc/MAPOST/MAPOST/* -> $DOMdir/post/MAPOST/"
+     cp -rfp  $MARsrc/MAPOST/MAPOST/*    $DOMdir/post/MAPOST/
+  else
+    CHOICE "mkdir: $DOMdir/post/MAPOST existing. Replace it?"
+    case $answer in
+    (y) echo "rm: $DOMdir/post/MAPOST"
+          rm -rf  $DOMdir/post/MAPOST 	
+        echo "mkdir: $DOMdir/post/MAPOST"
+              mkdir  $DOMdir/post/MAPOST
+        echo "mkdir: $DOMdir/post/MAPOST/run"
+              mkdir  $DOMdir/post/MAPOST/run
+        echo "cp: $MARsrc/MAPOST/MAPOST/* -> $DOMdir/post/MAPOST/"
+         cp -rfp  $MARsrc/MAPOST/MAPOST/*    $DOMdir/post/MAPOST/ ;;
+    (n) echo "$DOMdir/post/MAPOST kept intact" ;;
+    esac
+  fi
+
+  [ -d $DOMdir/post/MAPOST/zautre ] && rm -rf $DOMdir/post/MAPOST/zautre
+
+echo "cp: $DOMdir/input/NESTOR/src/NSTdim.inc -> $DOMdir/post/MAPOST/src/"
+  cp -fp  $DOMdir/input/NESTOR/src/NSTdim.inc    $DOMdir/post/MAPOST/src/
+
+  #compile?
+
+  echo "cp: $MARbin/COMPILE -> $DOMdir/post/MAPOST/src/"
+  cp -fp    $MARbin/COMPILE    $DOMdir/post/MAPOST/src/
+
+  CHOICE "compile MAPOST?"
+  case $answer in
+  (y) cd $DOMdir/post/MAPOST/src
+      chmod 700 COMPILE
+      ./COMPILE PMP ;;
+  (n) echo "MAPOST not compiled (manually: $DOMdir/post/MAPOST/src/COMPILE PMP)" ;;
+  esac
+
+else
+
+  echo "$MARsrc/MAPOST/MAPOST nonexistent"
+
+fi
+
+#                                                                               
+# POMME directory                                                              
+#                                                                               
+TITLE2 "Post-processing tool (POMME)"
+
+[ ! -d $DOMdir/post ] && mkdir $DOMdir/post
+
+if [ -d $MARsrc/POMME/POMME ] ; then
+
+  #directories and files
+
+  if [ ! -d $DOMdir/post/POMME ] ; then
+    echo "mkdir: $DOMdir/post/POMME"
+          mkdir  $DOMdir/post/POMME
+    echo "cp: $MARsrc/POMME/POMME/* -> $DOMdir/post/POMME/"
+     cp -fp   $MARsrc/POMME/POMME/*    $DOMdir/post/POMME/
+  else
+    CHOICE "mkdir: $DOMdir/post/POMME existing. Replace it?"
+    case $answer in
+    (y) echo "rm: $DOMdir/post/POMME"
+          rm -rf  $DOMdir/post/POMME     
+        echo "mkdir: $DOMdir/post/POMME"
+              mkdir  $DOMdir/post/POMME
+        echo "cp: $MARsrc/POMME/POMME/* -> $DOMdir/post/POMME/"
+         cp -fp   $MARsrc/POMME/POMME/*    $DOMdir/post/POMME/ ;;
+    (n) echo "$DOMdir/post/POMME kept intact" ;;
+    esac
+  fi
+
+  echo "compile: POMME is compiled when submitted as job on Rhodes"
+
+else
+
+  echo "$MARsrc/POMME/POMME nonexistent"
+
+fi
+
+#-------------------------------------------------------------------------------
+#  X - END OF AGES :o)                                                          
+#-------------------------------------------------------------------------------
+TITLE1 "END OF AGES :o)"
+

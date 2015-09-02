@@ -1,0 +1,1244 @@
+#!/bin/bash
+#
+# E. Vanvyve / X. Fettweis - 08.10.2007
+#                                                                               
+# NAME                                                                          
+#                                                                               
+#   PMP - post-process MAR (MAPOST)                                             
+#                                                                               
+# SYNOPSIS                                                                      
+#                                                                               
+#   PMP  name  yrI moI daI hrI  [yrF moF daF hrF]
+#                                                                               
+# OPERANDS                                                                      
+#                                                                               
+#   name    name of the MAR run to post-process             (e.g. a01)      [a3]
+#   yrI     initial year  of the post-processing period     (e.g. 1993)     [i4]
+#   moI             month                                   (e.g. 12  )     [i2]
+#   daI             day                                     (e.g. 01  )     [i2]
+#   hrI             hour                                    (e.g. 00  )     [i2]
+#  [optional arguments:
+#   yrF     final   year  of the post-processing period     (e.g. 1994)     [i4]
+#   moF             month                                   (e.g. 01  )     [i2]
+#   daF             day                                     (e.g. 01  )     [i2]
+#   hrF             hour                                    (e.g. 00  )     [i2]
+#   if not provided, the postprocessing is performed until the end of the month]
+#           (year = 1957-2002, month = 01-12, day = 01-31, hour = 00-23)        
+#                                                                               
+# DESCRIPTION                                                                   
+#                                                                               
+#   The PMP (Post MAR-Processing) script post-processes a MAR run with MAPOST   
+#   over the asked period.
+#   MAPOST is assumed to be UNIQUE for each group of simulations defined with
+#   the script INI.
+#                                                                               
+
+
+#-------------------------------------------------------------------------------
+# HELP                                                                          
+#-------------------------------------------------------------------------------
+
+[ ${#1} -eq 0 ] && head -34 $0 && exit
+
+
+#-------------------------------------------------------------------------------
+#  SCRIPT INITIALISATION                                                        
+#------------------------------------------------------------------------------ 
+
+#                                                                               
+# User's parameters                                                             
+#---------------------------------------
+
+#INI.ctr                                 
+
+tmp=`ls ${0%/*}/INI.ctr | wc -l`  #to avoid search in subdirectories
+[ $tmp -ne 1 ] && echo '@&?%! '"fatal error: ${0%/*}/INI.ctr nonexistent" && exit
+
+control=${0%/*}/INI.ctr
+. $control
+
+#$0.ctr                                 
+
+tmp=`ls $0.ctr | wc -l`  #to avoid search in subdirectories
+[ $tmp -ne 1 ] && echo '@&?%! '"fatal error: $0.ctr nonexistent" && exit
+
+control=$0.ctr
+. $control
+
+#FUNCTIONS
+
+. FUNCTIONS
+
+#                                                                               
+# System initialisation                                                         
+#---------------------------------------
+
+#main script parameters values          
+
+case $cluster in (nic|linux|idris) echo ;;
+                 (*) echo '@&?%! '"script not done for $cluster" && exit ;;
+esac
+
+#-------------------------------------------------------------------------------
+#  TITLE                                                                        
+#-------------------------------------------------------------------------------
+TITLE0 "MAR POST-PROCESSING (MAPOST)"
+
+
+#-------------------------------------------------------------------------------
+#  1 - INITIALISATION                                                           
+#-------------------------------------------------------------------------------
+TITLE1 "INITIALISATION"
+
+#                                                                               
+# Your parameters                                                               
+#---------------------------------------
+TITLE2 "Your parameters"
+
+  # WLDreg   = world region (GR, AN, EU, BE, ...)             
+  # domain   = domain of simulation (EUa, BEm, ...)       
+  # run name = name of the run in domain/ (a01, m16, ...) 
+
+#script argument                        
+
+usage="\nusage: PMP  domain  name  yrI moI daI hrI  yrF moF daF hrF"
+[ ${#1} -eq 0 ] && DAMNED "1st argument missing [name]\n$usage"
+[ ${#2} -eq 0 ] && DAMNED "2nd argument missing [period : yrI]\n$usage"
+[ ${#3} -eq 0 ] && DAMNED "3rd argument missing [period : moI]\n$usage"
+
+if [ ${#4} -ne 0 ] ; then
+ [ ${#4} -eq 0 ] && DAMNED "4th argument missing [period : daI]\n$usage"
+ [ ${#5} -eq 0 ] && DAMNED "5th argument missing [period : hrI]\n$usage"
+ if [ ${#6} -ne 0 ] ; then
+  [ ${#7} -eq 0 ] && DAMNED "7th argument missing [period : moF]\n$usage"
+  [ ${#8} -eq 0 ] && DAMNED "8th argument missing [period : daF]\n$usage"
+  [ ${#9} -eq 0 ] && DAMNED "9th argument missing [period : hrF]\n$usage"
+ fi
+fi
+
+zut="zut"
+arg1=$1
+arg2=$2
+arg3=$3
+arg4=$4
+arg5=$5
+arg6=${6:-$zut}
+arg7=${7:-$zut}
+arg8=${8:-$zut}
+arg9=${9:-$zut}
+
+#PMP.ctr arguments: user's dir. paths   
+
+MARbin=${MARbin%/}
+SIMdir=${SIMdir%/}
+STKmar=${STKmar%/} ; [ ${#STKmar} -eq 0 ] && STKmar="."
+STKlsc=${STKlsc%/}
+WRKdir=${WRKdir%/}
+WRKmsg=${WRKmsg%/}
+
+#PMP.ctr arguments: y/n values          
+
+case $pmpzip in ([!yn]) DAMNED "parameter error: pmpzip [$pmpzip]" ;; esac
+case $marzip in ([!yn]) DAMNED "parameter error: marzip [$marzip]" ;; esac
+case $lsczip in ([!yn]) DAMNED "parameter error: lsczip [$lsczip]" ;; esac
+
+case $cluster in (idris) marzip=n && lsczip=n && pmpzip=n ;; esac
+
+#PMP.ctr arguments: MAPOST.ctr values   
+
+case $HMD in ([!TF]) DAMNED "MAPOST.ctr parameter error: HMD [$HMD]" ;; esac
+case $SOS in ([!TF]) DAMNED "MAPOST.ctr parameter error: SOS [$SOS]" ;; esac
+case $LIB in ([!TF]) DAMNED "MAPOST.ctr parameter error: LIB [$LIB]" ;; esac
+case $VPB in ([!TF]) DAMNED "MAPOST.ctr parameter error: VPB [$VPB]" ;; esac
+case $SMV in ([!TF]) DAMNED "MAPOST.ctr parameter error: SMV [$SMV]" ;; esac
+case $STP in ([!TF]) DAMNED "MAPOST.ctr parameter error: STP [$STP]" ;; esac
+[ $lsc != "ECM" -a $lsc != "LMz" ] && DAMNED "MAPOST.ctr parameter error: lsc [$lsc]"
+
+#world region                           
+
+case $WLDreg in
+  (EU) tmp="Europe" ;;
+  (WA) tmp="West Africa" ;;
+  (AN) tmp="Antarctica" ;;
+  (GR) tmp="Greenland" ;;
+  (BE) tmp="Belgium" ;;
+  (*)  tmp="Atlantis..." ;;
+esac
+
+#user's parameters                      
+
+echo "general world region   : $WLDreg ($tmp)"
+echo
+echo "SIMdir directory       : $SIMdir"
+echo "MAR directory on stock : $STKmar"
+echo "LSC directory on stock : $STKlsc"
+echo "batched job messages in: $WRKmsg"
+echo "work directory for job : $WRKdir"
+echo
+echo "gzip output files      : $pmpzip"
+echo "MAR files are gzipped  : $marzip"
+echo "LSC files are gzipped  : $lsczip"
+echo
+echo "cluster                : $cluster ($walltime h walltime)"
+if [ $cluster = "linux" ] ; then
+echo "job submission with PBS: $job_pbs"
+fi
+echo "stock address          : $stock"
+
+#echo ; echo "<return>" ; read
+
+
+#                                                                               
+# Check the run name                                                            
+#---------------------------------------
+TITLE2 "Check the run name"
+
+runnam=$arg1  #a01
+domain=$WLDreg${runnam%??}
+
+#length                                 
+
+[ ${#runnam} -ne 3 ] && DAMNED "format error: run name (a3) [$runnam]"
+
+echo "run name: $runnam"
+echo "associated domain: $domain"
+echo "associated world region: $WLDreg"
+
+#check the validity of the associated domain name
+
+k=0
+for i in `ls $SIMdir | awk '{ print($0) }'` ; do
+  [ $i = $domain ] && k=$(($k+1))
+  [ ${i%?} = $WLDreg ] && dom=$dom" $i"
+done
+[ ${#dom} -le 1 ] && dom=" none"
+[ $k -ne 1 ] && DAMNED "nonexistent domain for ${runnam}! [$domain]  (suggestion:$dom)"
+
+#LSC file denomination                  
+
+  #for ERA-40, it is 'EUR' for example ECM.1993.12.01-15.EUR.nc
+
+case $WLDreg in
+  (GR) LSCreg=GRD ;;
+  (AN) LSCreg=GRD ;;
+  (EU) LSCreg=EUR ;;
+  (BE) LSCreg=EUR ;;
+  (WA) LSCreg=WAF ;;
+  (*)  DAMNED "fatal error: \$LSCreg undefined" ;;
+esac
+
+echo "associated LSC region: $LSCreg"
+
+#                                                                               
+# Check the simulation dates                                                    
+#---------------------------------------
+TITLE2 "Check the simulation dates"
+
+  #./PMP  ..  $3     $4     $5     $6     $7     $8     $9     $10
+  #./PMP  ..  yrI    moI    daI    hrI    yrF    moF    daF    hrF    
+
+  #yrI/F = Initial/Final year (i4) ; moI/F = Initial/Final month (i2)
+  #daI/F = Initial/Final day  (i2) ; hrI/F = Initial/Final hour  (i2)
+
+yrI=$arg2 ; yrF=$arg6
+moI=$arg3 ; moF=$arg7
+daI=$arg4 ; daF=$arg8
+hrI=$arg5 ; hrF=$arg9
+
+[ ${#arg4} -eq 0 ] && daI="01" && hrI="00"
+
+#check the arguments validity (& format)
+
+[ ${#yrI} -ne 4 ] && DAMNED "formar error: year (yrI) [$yrI]"
+[ ${#moI} -ne 2 ] && DAMNED "formar error: month (moI) [$moI]"
+[ ${#daI} -ne 2 ] && DAMNED "formar error: day (daI) [$daI]"
+[ ${#hrI} -ne 2 ] && DAMNED "formar error: hour (hrI) [$hrI]"
+if [ $arg6 != "zut" ] ; then
+[ ${#yrF} -ne 4 ] && DAMNED "formar error: year (yrF) [$yrF]"
+[ ${#moF} -ne 2 ] && DAMNED "formar error: month (moF) [$moF]"
+[ ${#daF} -ne 2 ] && DAMNED "formar error: day (daF) [$daF]"
+[ ${#hrF} -ne 2 ] && DAMNED "formar error: hour (hrF) [$hrF]"
+else
+
+  hrF=18
+  set_time_arrays $yrI
+  daF=${day[10#$moI]}
+  moF=$moI
+  yrF=$yrI
+
+#  hrF=00
+#  daF=01
+#  moF=$((moI+1))
+#  if [ $moF -eq 13 ] ; then
+#    moF=01
+#    yrF=$((yrI+1))
+#  else
+#    yrF=$yrI
+#  fi
+fi
+
+#check the arguments value              
+
+  #initial
+yr=$yrI ; mo=$moI ; da=$daI ; hr=$hrI ; tmp="initial"
+set_time_arrays $yr
+
+[ $yr -lt 1957 -o $yr -gt 2007 ] && DAMNED "value error: $tmp year (available: 1957-2002) [$yr]"
+[ $mo -lt 1 -o $mo -gt 12 ] && DAMNED "value error: $tmp month [$mo]"
+[ $da -lt 1 -o $da -gt ${day[10#$mo]} ] && DAMNED "value error: $tmp day [$da]"
+[ $hr -lt 0 -o $hr -gt 23 ] && DAMNED "value error: $tmp hour [$hr]"
+
+  #final
+yr=$yrF ; mo=$moF ; da=$daF ; hr=$hrF ; tmp="final"
+set_time_arrays $yr
+
+[ $yr -lt 1957 -o $yr -gt 2007 ] && DAMNED "value error: $tmp year (available: 1957-2002) [$yr]"
+[ $mo -lt 1 -o $mo -gt 12 ] && DAMNED "value error: $tmp month [$mo]"
+[ $da -lt 1 -o $da -gt ${day[10#$mo]} ] && DAMNED "value error: $tmp day [$da]"
+[ $hr -lt 0 -o $hr -gt 23 ] && DAMNED "value error: $tmp hour [$hr]"
+
+  #initial vs final
+
+if [ $yrI -gt $yrF ] ; then
+  DAMNED "value error: initial year > final year [$yrI>$yrF]"
+elif [ $yrI -eq $yrF ] ; then
+  if [ $moI -gt $moF ] ; then
+    DAMNED "value error: initial month > final month [$moI>$moF]"
+  elif [ $moI -eq $moF ] ; then
+    if [ $daI -gt $daF ] ; then
+      DAMNED "value error: initial day > final day [$daI>$daF]"
+    elif [ $daI -eq $daF ] ; then
+      if [ $hrI -gt $hrF ] ; then
+        DAMNED "value error: initial hour > final hour [$hrI>$hrF]"
+      elif [ $hrI -eq $hrF ] ; then
+        DAMNED "value error: initial date = final date [$yrI$moI$daI$hrI=$yrF$moF$daF$hrF]"
+      fi
+    fi
+  fi
+fi
+
+  #textual
+
+tyrI=${yrI#??}
+tyrF=${yrF#??}
+[ ${#moI} -eq 1 ] && tmoI="0$moI" || tmoI="$moI"
+[ ${#moF} -eq 1 ] && tmoF="0$moF" || tmoF="$moF"
+[ ${#daI} -eq 1 ] && tdaI="0$daI" || tdaI="$daI"
+[ ${#daF} -eq 1 ] && tdaF="0$daF" || tdaF="$daF"
+[ ${#hrI} -eq 1 ] && thrI="0$hrI" || thrI="$hrI"
+[ ${#hrF} -eq 1 ] && thrF="0$hrF" || thrF="$hrF"
+
+echo "period of post-processing: $tdaI/$tmoI/$yrI $hrI:00 to $tdaF/$tmoF/$yrF $hrF:00"
+
+#                                                                               
+# Compute the simulation length                                                 
+#---------------------------------------
+TITLE2 "Compute the simulation length"
+
+#time step of post-processing           
+
+[ ${#dt} -ne 2 ] && DAMNED "format error: time step (dt) [$dt]"
+
+[ $dt -le 0 -o $dt -gt 99 ] && DAMNED "value error: time step of post-processing [$dt]"
+
+#total length in hour (lg)              
+
+#         hrI  -> 24h    moI+1 -> dec     jan  -> moF      0h  -> hrF      
+# initial  |-------+-------+-------+-------+-------+-------+-------| final 
+#                daI+1 -> da*    yrI+1 -> yrF      01  -> daF              
+#                                                                          
+# da* = end of the month moI                                               
+
+lg=0
+
+  #hours
+
+if [ $daI -eq $daF -a $moI -eq $moF -a $yrI -eq $yrF ] ; then
+  lg=$(( 10#$hrF - 10#$hrI ))
+else
+  lg=$(( 24 - 10#$hrI + 10#$hrF ))
+fi
+
+tmp=0
+
+  #days
+
+if [ $moI -eq $moF -a $yrI -eq $yrF ] ; then
+  tmp=$(( 10#$daF - (10#$daI + 1) ))
+else
+  set_time_arrays $yrI
+  tmp=$(( ${day[10#$moI]} - 10#$daI + (10#$daF - 1) ))
+fi
+lg=$(( 10#$lg + 10#$tmp * 24 ))
+
+tmp=0
+
+  #months
+if [ $yrI -ne $yrF ] ; then
+  set_time_arrays $yrI
+  mo=$(( 10#$moI + 1 ))
+  while [ $mo -le 12 ] ; do
+    tmp=$(( 10#$tmp + 10#${day[10#$mo]} ))
+    mo=$(( 10#$mo + 1 ))
+  done
+  set_time_arrays $yrF
+  mo=1
+  while [ $mo -le $(( 10#$moF -1 )) ] ; do
+    tmp=$(( 10#$tmp + ${day[10#$mo]} ))
+    mo=$(( 10#$mo + 1 ))
+  done
+else
+  set_time_arrays $yrI
+  mo=$(( 10#$moI + 1 ))
+  while [ $mo -le $(( 10#$moF -1 )) ] ; do
+    tmp=$(( 10#$tmp + 10#${day[10#$mo]} ))
+    mo=$(( 10#$mo + 1 ))
+  done
+fi
+
+lg=$(( 10#$lg + 10#$tmp * 24 ))
+
+  #years
+
+tmp=0
+yr=$(( 10#$yrI + 1 ))
+while [ $yr -lt $yrF ] ; do
+  set_time_arrays $yr
+  mo=1
+  while [ $mo -le 12 ] ; do
+    tmp=$(( 10#$tmp + 10#${day[10#$mo]} ))
+    mo=$(( 10#$mo + 1 ))
+  done
+  yr=$(( 10#$yr + 1 ))
+done
+lg=$(( 10#$lg + 10#$tmp * 24 ))
+
+#test on validity of lg vs dt
+
+tmp=$(( 10#$lg / 10#$dt ))  #integer number
+if [ $lg -ne $(( 10#$dt * 10#$tmp )) ] ; then
+  DAMNED "value error: time step and simulation length do not match [$dt/$lg]"
+fi
+
+#dlg: number of entire days in length
+
+dlg=$(( 10#$lg / 24 ))      #smallest integer part
+if [ ${#dlg} -gt 3 ] ; then
+  DAMNED "value error: simulation length too long (max. 999 days) [$dlg]"
+fi
+
+#hlg: number of partial hours in length
+
+hlg=$(( 10#$lg - 10#$dlg * 24 ))
+if [ $hlg -gt 99 ] ; then
+  DAMNED "fatal error: hlg out of limit (max. 99 hours) [$hlg]"
+fi
+
+#last tests and display                 
+
+[ $dlg -le 1 ] && tmp="day" || tmp="days"
+[ $hlg -le 1 ] && tmp1="hour" || tmp1="hours"
+
+echo "simulation length: $dlg $tmp $hlg $tmp1"
+
+#                                                                               
+# Find MAR and LSC files on stock                                               
+#                                                                               
+TITLE2 "Find MAR and LSC files on stock"
+
+#names of LSC data files are stored in ${MARfil[.]}, ${MARyr[.]}
+#                                      ${LSCfil[.]}, ${LSCyr[.]}
+
+#function: searching most suitable files
+
+findsuitablefile () { 
+  # synopsis: findsuitablefile MAR $path 0 YYYY MM DD DD
+  # function arguments: $1 = type of searched file [MAR|ECM]
+  #                     $2 = file path
+  #                     $3 = flag (1 = last period, 0 = any other)
+  #                     $4 = year      of the user-wanted period (i4)  [Pyr]
+  #                     $5 = month     of the user-wanted period (i2)  [Pmo]
+  #                     $6 = first day of the user-wanted period (i2)  [Pd1]
+  #                     $7 = last  day of the user-wanted period (i2)  [Pd2]
+  #
+  # external variables: Fd1[.] = begin day of the examined files (F=file)
+  #                     Fd2[.] = end   day of the examined files
+  #                     Fmo[.] = month     of the examined files
+  #                     Fyr[.] = year      of the examined files
+  #                     
+  # output   variables: d2        = last day of the suitable found file
+  #                     MARfil[.] = array of suitable found files (MAR)
+  #                     MARyr[.]  = array with year of each of these files
+  #                     LSCfil[.] = array of suitable found files (LSC)
+  #                     LSCyr[.]  = array with year of each of these files
+  #                     mf is incremented
+
+  Pyr=$4 ; Pmo=$5 ; Pd1=$6 ; Pd2=$7
+  [ ${#Pmo} -ne 2 ] && Pmo=0$Pmo
+  echo "period: $Pd1-$Pd2/$Pmo/$Pyr"
+
+  #candidate matching the starting day (d1)
+  i=0 ; id1="" ; tmp=""
+  while [ $i -le $(( ${#Fd1[@]} - 1 )) ] ; do
+    if [ ${Fyr[10#$i]} -eq $Pyr ] ; then  #Fyr = Pyr
+    if [ ${Fmo[10#$i]} -eq $Pmo ] ; then  #Fmo = Pmo
+    if [ ${Fd1[10#$i]} -le $Pd1 ] ; then  #Fd1 <= Pda
+    if [ ${Fd2[10#$i]} -ge $Pd1 ] ; then  #Fd2/Fmo/Fyr >= Pda/Pmo/Pyr
+      id1=$id1" $i"
+      tmp=$tmp" ${Fd1[10#$i]}-${Fd2[10#$i]}/$Pmo/$Pyr"
+    fi ; fi ; fi ; fi
+    i=$(( $i + 1 ))
+  done
+
+  x=$(( `echo $id1 | wc -w` ))   #x candidates matching the starting day
+  if [ $x -eq 0 ] ; then
+    DAMNED "no suitable file found in $2" ; exit
+  else
+    [ ${#tmp} -ne 0 ] && echo "        start-day suitable:$tmp"
+
+  #candidate matching the ending day (d2) (amongst d1-matching ones)
+    id12=""
+    [ $3 -eq 0 ] && tmp=0 || tmp=$(( 10#$Pd2 - 10#$Pd1 ))
+    for i in $id1 ; do
+      if  [ $(( 10#${Fd2[10#$i]} - 10#${Fd1[10#$i]} )) -ge $tmp ] ; then
+        id12=$id12" $i"                                #Fd2-Fd1 largest
+        [ $3 -eq 0 ] && tmp=$(( 10#${Fd2[10#$i]} - 10#${Fd1[10#$i]} ))
+      fi
+    done
+  
+  #number of candidates matching starting + ending days (d1+d2)
+    x=$(( `echo $id12 | wc -w` ))  #x candidates matching both days (x=no char.)
+    if [ $x -eq 0 ] ; then
+      DAMNED "no suitable file found in $2"
+    else
+      tmp=""
+      for i in $id12 ; do
+        tmp=$tmp" ${Fd1[10#$i]}-${Fd2[10#$i]}/$Pmo/$Pyr"
+      done
+      echo "        & end-day suitable:$tmp"
+      if [ $3 -eq 0 ] ; then  #other periods
+        tmp=0
+        for i in $id12 ; do
+          if [  $(( 10#${Fd2[10#$i]} - 10#${Fd1[10#$i]} )) -ge $tmp ] ; then
+            tmp=$(( 10#${Fd2[10#$i]} - 10#${Fd1[10#$i]} ))
+            d1=${Fd1[10#$i]}
+            d2=${Fd2[10#$i]}
+          fi
+        done
+      else                    #last period
+        tmp=$(( 10#$Pd2 - 10#$Pd1 ))
+        tmp1=$(( ${day[10#$Pmo]} - 1 ))
+        for i in $id12 ; do
+          if [ $(( 10#${Fd2[10#$i]} - 10#${Fd1[10#$i]} )) -ge $tmp  ] ; then
+          if [ $(( 10#${Fd2[10#$i]} - 10#${Fd1[10#$i]} )) -le $tmp1 ] ; then
+              tmp1=$(( 10#${Fd2[10#$i]} - 10#${Fd1[10#$i]} ))
+              d1=${Fd1[10#$i]}
+              d2=${Fd2[10#$i]}
+          fi
+          fi
+        done
+      fi
+    fi
+  fi
+
+  #name of the most suitable file
+  [ ${#Pmo} -eq 1 ] && Pmo="0$Pmo" || Pmo="$Pmo"
+  [ ${#d1}  -eq 1 ] && d1="0$d1"   || d1="$d1"
+  [ ${#d2}  -eq 1 ] && d2="0$d2"   || d2="$d2"
+  if   [ $1 = "MAR" ] ; then
+    MARfil[10#$mf]=MAR.$runnam.$Pyr.$Pmo.${d1}-$d2.nc
+    MARyr[10#$mf]=$Pyr
+    echo "        MAR input file: ${MARfil[10#$mf]}"
+  elif [ $1 = "ECM" ] ; then
+    LSCfil[10#$mf]=ECM.$Pyr.$Pmo.${d1}-$d2.$LSCreg.nc
+    LSCyr[10#$mf]=$Pyr
+    echo "        LSC input file: ${LSCfil[10#$mf]}"    
+  fi
+  mf=$(( 10#$mf + 1 )) ;
+} #end function findsuitablefile
+
+#MAR: for each year $yr, get time periods (month&days) for each avail. file
+
+REMARK "searching existing MAR files"
+
+[ $marzip = "y" ] && Z=".gz" || Z=""
+NAMfil="MAR.$runnam.*.nc$Z"
+STKtmp=$STKmar/$domain/$runnam
+
+yr=$yrI
+[ $hrF$daF$moF = "000101" ] && yr2=$(( $yrF - 1 )) || yr2=$yrF
+  #last year not needed if final date = 1st Jan 0:00 a.m.
+x=0
+
+while [ $yr -le $yr2 ] ; do
+  case $cluster in
+    (nic|linux)    if [ $sftp = "y" ] ; then
+                    if [ ${#gateway} -gt 0 ] ; then 
+                     $gateway "$ssh $ustock@$stock \"cd $STKtmp/$yr ; ls -1 $NAMfil\"" > aftp$$
+                    else
+                     $ssh $ustock@$stock "cd $STKtmp/$yr ; ls -1 $NAMfil" > aftp$$
+                    fi
+                   else
+                    aftp ls $STKtmp/$yr/$NAMfil
+                   fi ;;
+    (idris) ls -1         $STKtmp/$yr/$NAMfil > aftp$$ ;;  #ls > aftp$$ 
+  esac
+  cat aftp$$ | grep "MAR.$runnam" | awk '{i=NF ; print($i)}'
+  case $cluster in
+    (nic|linux)
+      if [ `grep -c "MAR.$runnam" aftp$$` -eq 0 ] ; then
+       DAMNED "$yr, stock: $STKtmp/$yr/$NAMfil nonexistent"
+      fi
+      tmp=`cat aftp$$ | grep "MAR.$runnam" |  awk '{i=NF ; print($i)}' |       \
+           sed "s:MAR.$runnam.::g" | sed "s/.nc$Z//g" |                        \
+           sed "s/\./-/g"`    #path/MAR.a20.1993.06.11-21.nc.gz to 1993-06-11-21
+      for val in `echo $tmp` ; do
+        maryr[$x]=`echo $val | awk -F - '{print($1)}'` #get year
+        marmo[$x]=`echo $val | awk -F - '{print($2)}'` #get month
+        mard1[$x]=`echo $val | awk -F - '{print($3)}'` #get day (begin)
+        mard2[$x]=`echo $val | awk -F - '{print($4)}'` #get day (end  )
+        x=$(( 10#$x + 1 ))
+      done ;;
+    (idris)
+      if [ `grep -c "MAR.$runnam" aftp$$` -eq 0 ] ; then
+       DAMNED "$yr, stock: $STKtmp/$yr/$NAMfil nonexistent"
+      fi
+      tmp=`cat aftp$$ | grep "MAR.$runnam" |                                   \
+           sed "s:$STKtmp/$yr/MAR.$runnam.::g" | sed "s/.nc$Z//g" |            \
+           sed "s/\./-/g"`    #MAR.a20.1993.06.11-21.nc.gz to 1993-06-11-21
+      for val in `echo $tmp` ; do
+        maryr[$x]=`echo $val | awk 'FS="-" {print($1)}'` #get year
+        marmo[$x]=`echo $val | awk 'FS="-" {print($2)}'` #get month
+        mard1[$x]=`echo $val | awk 'FS="-" {print($3)}'` #get day (begin)
+        mard2[$x]=`echo $val | awk 'FS="-" {print($4)}'` #get day (end  )
+        x=$(( 10#$x + 1 ))
+      done ;;
+  esac
+  yr=$(( 10#$yr + 1 ))
+  rm -f aftp$$
+done
+
+#MAR: among those files, search the most suitable for the period to post-process
+
+REMARK "searching the most suitable MAR files"
+
+yr=$yrI ; mo=$moI ; da=$daI
+
+i=0
+while [ $i -le $(( ${#mard1[@]} - 1 )) ] ; do
+  Fd1[$i]="${mard1[$i]}"
+  Fd2[$i]="${mard2[$i]}"
+  Fmo[$i]="${marmo[$i]}"
+  Fyr[$i]="${maryr[$i]}"
+  i=$(( $i + 1 ))
+done
+
+mf=0
+
+limit=1
+
+#YEAR < yrF
+while [ $yr -lt $yrF ] ; do
+  set_time_arrays $yr
+  #MONTH -> 12/$yr
+  while [ $mo -le 12 ] ; do
+    da2=${day[10#$mo]}
+    #DAY -> end of current month
+    while [ $da -le $da2 ] ; do
+      [ ${#da} -eq 1 ] && da="0$da"
+      limit=$(( limit + 1)) ; [ $limit -ge 5 ] && echo "ERROR" && exit
+      findsuitablefile "MAR" "$STKtmp/$yr" "0" "$yr" "$mo" "$da" "$da2"
+      da=$(( 10#$d2 + 1 ))
+    done
+    mo=$(( 10#$mo + 1 ))
+    da=1
+  done
+  yr=$(( 10#$yr + 1 ))
+  mo=1
+done
+
+#YEAR = yrF
+  set_time_arrays $yr
+  #MONTH < moF
+  while [ $mo -lt $moF ] ; do
+    da2=${day[10#$mo]}
+    #DAY -> end of the month
+    while [ $da -le $da2 ] ; do
+      [ ${#da} -eq 1 ] && da="0$da"
+      findsuitablefile "MAR" "$STKtmp/$yr" "0" "$yr" "$mo" "$da" "$da2"
+      da=$(( 10#$d2 + 1 ))
+    done
+    mo=$(( 10#$mo + 1 ))
+    da=1
+  done
+  #MONTH = moF
+  [ $hrF  = "00" ] && da2=$daF
+  [ $hrF != "00" ] && da2=$(( 10#$daF + 1 ))
+    #DAY < daF
+    while [ $da -lt $da2 ] ; do
+      [ ${#da} -eq 1 ] && da="0$da"
+      findsuitablefile "MAR" "$STKtmp/$yr" "0" "$yr" "$mo" "$da" "$da2"
+      da=$(( 10#$d2 + 1 ))
+    done
+    #DAY = daF
+#    if [ $da -le $da2 ] ; then
+#      [ ${#da} -eq 1 ] && da="0$da"
+#      findsuitablefile "MAR" "$STKtmp/$yr" "1" "$yr" "$mo" "$da" "$da2"
+#    fi
+
+echo
+
+#LSC: for each year $yr, get time periods (month&days) for each avail. file
+
+REMARK "searching existing LSC files"
+
+[ $lsczip = "y" ] && Z=".gz" || Z=""
+NAMfil="$lsc*$LSCreg.nc$Z"
+STKtmp=$STKlsc/$LSCreg
+
+yr=$yrI ; yr2=$yrF ; x=0
+
+while [ $yr -le $yr2 ] ; do
+  case $cluster in
+    (nic|linux)    if [ $sftp = "y" ] ; then
+                    if [ ${#gateway} -gt 0 ] ; then 
+                     $gateway "$ssh $ustock@$stock \"cd $STKtmp/$yr ; ls -1 $NAMfil\"" > aftp$$
+                    else
+                     $ssh $ustock@$stock "cd $STKtmp/$yr ; ls -1 $NAMfil" > aftp$$
+                    fi
+                   else
+                    aftp ls $STKtmp/$yr/$NAMfil
+                   fi ;;
+    (idris) ls -1         $STKtmp/$yr/$NAMfil > aftp$$ ;;  #ls > aftp$$ 
+  esac
+  case $cluster in
+    (nic)   cat aftp$$ | grep "$lsc"    | awk '{i=NF ; print($i)}' ;;
+    (linux) cat aftp$$ | grep "$lsc"    | awk '{i=NF ; print($i)}' ;;
+    (idris) cat aftp$$ | grep "$STKtmp" | awk '{i=NF ; print($i)}' ;;
+  esac
+  case $cluster in
+    (idris)
+      if [ `grep -c "$STKtmp" aftp$$` -eq 0 ] ; then
+        DAMNED "$yr, stock: $STKtmp/$yr/$NAMfil nonexistent"
+      fi
+      tmp=`cat aftp$$ | grep "$STKtmp/$yr" |                                   \
+           sed "s:$STKtmp/$yr/$lsc.::g" | sed "s/.$LSCreg.nc$Z//g" |           \
+           sed "s/\./-/g"`    #path/ECM.1993.06.01-15.EUR.nc.gz to 1993-06-01-15
+      for val in `echo $tmp` ; do
+        lscyr[$x]=`echo $val | awk 'FS="-" {print($1)}'` #get year
+        lscmo[$x]=`echo $val | awk 'FS="-" {print($2)}'` #get month
+        lscd1[$x]=`echo $val | awk 'FS="-" {print($3)}'` #get day (begin)
+        lscd2[$x]=`echo $val | awk 'FS="-" {print($4)}'` #get day (end  )
+        x=$(( 10#$x + 1 ))
+      done ;;
+    (nic|linux)
+      if [ `grep -c "$lsc" aftp$$` -eq 0 ] ; then
+        DAMNED "$yr, stock: $STKtmp/$yr/$NAMfil nonexistent"
+      fi
+      tmp=`cat aftp$$ | grep "$lsc" | awk '{i=NF ; print($i)}' |               \
+           sed "s:$lsc.::g" | sed "s/.$LSCreg.nc$Z//g" |                       \
+           sed "s/\./-/g"`    #path/ECM.1993.06.01-15.EUR.nc.gz to 1993-06-01-15
+      for val in `echo $tmp` ; do
+        lscyr[$x]=`echo $val | awk -F - '{print($1)}'` #get year
+        lscmo[$x]=`echo $val | awk -F - '{print($2)}'` #get month
+        lscd1[$x]=`echo $val | awk -F - '{print($3)}'` #get day (begin)
+        lscd2[$x]=`echo $val | awk -F - '{print($4)}'` #get day (end  )
+        x=$(( 10#$x + 1 ))
+      done ;;
+  esac
+  yr=$(( 10#$yr + 1 ))
+  rm -f aftp$$
+done
+
+#LSC: among those files, search the most suitable for the period to post-process
+
+REMARK "searching the most suitable LSC files"
+
+yr=$yrI ; mo=$moI ; da=$daI ; da2=$daF
+
+i=0
+while [ $i -le $(( ${#lscd1[@]} - 1 )) ] ; do
+  Fd1[$i]="${lscd1[$i]}"
+  Fd2[$i]="${lscd2[$i]}"
+  Fmo[$i]="${lscmo[$i]}"
+  Fyr[$i]="${lscyr[$i]}"
+  i=$(( $i + 1 ))
+done
+
+mf=0
+
+#YEAR < yrF
+while [ $yr -lt $yrF ] ; do
+  set_time_arrays $yr
+  #MONTH -> 12/$yr
+  while [ $mo -le 12 ] ; do
+    da2=${day[10#$mo]}
+    #DAY -> end of current month
+    while [ $da -le $da2 ] ; do
+      [ ${#da} -eq 1 ] && da="0$da"
+      findsuitablefile "ECM" "$STKtmp/$yr" "0" "$yr" "$mo" "$da" "$da2"
+      da=$(( 10#$d2 + 1 ))
+    done
+    mo=$(( 10#$mo + 1 ))
+    da=1
+  done
+  yr=$(( 10#$yr + 1 ))
+  mo=1
+done
+
+#YEAR = yrF
+  set_time_arrays $yr
+  #MONTH < moF
+  while [ $mo -lt $moF ] ; do
+    da2=${day[10#$mo]}
+    #DAY -> end of the month
+    while [ $da -le $da2 ] ; do
+      [ ${#da} -eq 1 ] && da="0$da"
+      findsuitablefile "ECM" "$STKtmp/$yr" "0" "$yr" "$mo" "$da" "$da2"
+      da=$(( 10#$d2 + 1 ))
+    done
+    mo=$(( 10#$mo + 1 ))
+    da=1
+  done
+
+  #MONTH = moF
+  [ $hrF  = "00" ] && da2=$daF
+ #[ $hrF != "00" ] && da2=$(( 10#$daF + 1 ))
+    #DAY < daF
+    while [ $da -le $da2 ] ; do
+      [ ${#da} -eq 1 ] && da="0$da"
+      findsuitablefile "ECM" "$STKtmp/$yr" "0" "$yr" "$mo" "$da" "$da2"
+      da=$(( 10#$d2 + 1 ))
+    done
+    #DAY = daF
+    if [ $da -le $da2 ] ; then
+      [ ${#da} -eq 1 ] && da="0$da"
+      findsuitablefile "MAR" "$STKtmp/$yr" "1" "$yr" "$mo" "$da" "$da2"
+    fi
+
+#                                                                               
+# Set paths and variables                                                       
+#---------------------------------------
+TITLE2 "Set paths and variables"
+
+DOMdir=$SIMdir/$domain
+PMPdir=$SIMdir/$domain/post/MAPOST
+
+echo "simulation domain directory: $DOMdir"
+echo "MAPOST            directory: $PMPdir"
+
+##                                                                         
+## Save your PMP.ctr file                                                
+##---------------------------------------
+##TITLE2 "Save your PMP.ctr file"
+
+#  #e.g. PMP.ctr.93120100-93123100 (initial and final dates)
+#PMPctr=PMP.ctr.$tyrI$tmoI$tdaI${thrI}-$tyrF$tmoF$tdaF$thrF
+#cp -fp  $0.ctr  $PMPdir/ctrl/$PMPctr
+#chmod -x  $PMPdir/ctrl/$PMPctr
+#echo "cp: ${0}.ctr -> $PMPdir/ctrl/$PMPctr"
+
+
+#-------------------------------------------------------------------------------
+#  2 - MAR POST-PROCESSING BATCH COMMAND FILE                                   
+#-------------------------------------------------------------------------------
+TITLE1 "MAR POST-PROCESSING BATCH COMMAND FILE"
+
+#                                                                               
+# Job command file setup                                                        
+#---------------------------------------                               
+TITLE2 "Job command file setup"
+
+bch="PMP_$WLDreg$runnam.$tyrI$tmoI$tdaI${thrI}-$tyrF$tmoF$tdaF$thrF"
+  #> PMP_EUt01.93120100-94013100*         batch command file
+  #  PMP_EUt01.93120100-94013100.eole.eo  batch command file std error/output
+  #  PMP_EUt01.93120100-94013100.eole.??? batch command file state (in $WRKmsg)
+  #  PMP_EUt01.93120100-94013100/         simulation dir. on the batch machine
+
+job="PMP${runnam}${yrI}${tmoI}${tdaI}"
+  #> MAPOST                               job name for the batch queue
+  #  MAPOST.exe                           MAPOST executable           
+  #  MAPOST.log                           MAPOST log output           
+
+if [ -f $PMPdir/run/$bch.cmd ] ; then
+  echo "job command file $bch.cmd existing. Deleting it..."
+  rm -f $PMPdir/run/$bch.cmd
+fi
+touch $PMPdir/run/$bch.cmd
+echo "job command file: $PMPdir/run/$bch.cmd"
+                           
+CMDfile=$PMPdir/run/$bch.cmd
+
+#                                                                               
+# Job command file content                                                      
+#---------------------------------------                               
+TITLE2 "Job command file content"
+
+#                                                                               
+# Batch specifications                                                          
+#---------------------------------------                               
+
+case $cluster in
+(nic)
+  BCH "#!/bin/ksh"
+  BCH "#job name"  
+  BCH "#$ -N $job" 
+ #BCH "#environment"
+ #BCH "#$ -V"      
+  BCH "#memory request"
+  BCH "#$ -l h_vmem=300M"
+  BCH "#$ -l h_cpu=24:0:0"
+  BCH "#$ -l h_rt=24:0:0"
+ #BCH "##$ -l ib=true"
+  BCH "#standard error/output streams"
+  BCH "#$ -j y"
+  BCH "#$ -o $WRKmsg/$bch.eo" 
+  BCH "#$ -cwd" ;;
+(idris)
+  BCH "#!/bin/ksh"
+  BCH "#QSUB -lt 3600"
+  BCH "#QSUB -ro"
+  BCH "#QSUB -eo"
+  BCH "#QSUB -o $WRKmsg/$bch.eo"
+  BCH "#QSUB -lM 2000Mb"
+  BCH "#QSUB -r $job" ;;
+(linux)
+  BCH "#!/bin/ksh"
+  BCH "#PBS -N $job"
+  BCH "#PBS -o $WRKmsg/$bch.eo"
+  BCH "#PBS -j eo" ;;
+esac
+
+BCH ". $MARbin/INI.ctr"
+BCH ". $MARbin/FUNCTIONS"
+
+echo "job command file < batch specification"
+
+#                                                                               
+# Initialisation                                                                
+#---------------------------------------                               
+BCHt   "Initialisation"
+
+#variables definition                   
+
+BCHc "variables definition"
+
+case $cluster in (nic|linux|idris) BCH "host=\`hostname -s\`" ;; esac
+
+#job messages file in $WRKmsg           
+
+BCHc "job messages file in $WRKmsg"
+
+BCH "msg=$WRKmsg/$bch.\$host"
+BCH "rm -f $WRKmsg/$bch.\${host%\${host#???}}*"
+BCH "touch \$msg"
+
+#                                                                               
+# Job informations                                                              
+#---------------------------------------                               
+BCHt   "Job informations"
+
+BCH "[ -d $WRKdir ] || mkdir $WRKdir"
+BCH "echo \"$job $WRKdir\" >> $WRKmsg/locations"
+BCH
+BCH "echo \"Begin time     : $tdaI/$tmoI/$yrI $thrI:00\""
+BCH "echo \"End   time     : $tdaF/$tmoF/$yrF $thrF:00\""
+BCH "echo \"Domain         : $domain ($DOMdir)\""
+BCH "echo"
+BCH "echo \"Date           : \`date\`\""
+BCH "echo \"Host           : \$host\""
+BCH "echo \"Work directory : $WRKdir\""
+BCH "echo \"Messages in    : $WRKmsg\""
+
+echo "job command file < job informations"
+
+#                                                                               
+# Work directory
+#---------------------------------------                               
+BCHt   "Work directory"
+
+#work directory ($WRKdir/$bch)          
+
+BCHc "work directory ($WRKdir/$bch)"
+
+BCH "[ ! -d $WRKdir ] && mkdir $WRKdir"
+BCH
+BCH "if [ ! -d $WRKdir/$bch ] ; then"
+BCH "  mkdir   $WRKdir/$bch"
+BCH "else"
+BCH "  rm -rf  $WRKdir/$bch"
+BCH "  mkdir   $WRKdir/$bch"
+BCH "  echo \"rm: existing $WRKdir/$bch\""
+BCH "fi"
+BCH "if [ -d $WRKdir/$bch.CRASH ] ; then"
+BCH "  rm -rf  $WRKdir/$bch.CRASH"
+BCH "  echo \"rm: existing $WRKdir/$bch.CRASH\""
+BCH "fi"
+BCH
+WRKdix=$WRKdir        #to keep it intact and use it in case of CRASH
+WRKdir=$WRKdir/$bch
+BCH
+BCH "cp -rfp  $PMPdir/*  $WRKdir/"
+BCH "rm -rf  $WRKdir/run"
+BCH
+BCH "[ ! -d $WRKdir/input ] && mkdir $WRKdir/input"
+BCH "[ -d $WRKdir/output ] && rm -rf $WRKdir/output"
+BCH "mkdir $WRKdir/output"
+BCH "[ ! -d $WRKdir/core ] && mkdir $WRKdir/core"
+
+#MAPOST executable                      
+
+BCHc "MAPOST executable"
+
+BCH "if [ ! -f $WRKdir/MAPOST.exe ] ; then"
+BCH "  DAMNED \"executable nonexistent [$WRKdir/MAPOST.exe]\" \"fil\""
+BCH "  END_EXIT"
+BCH "fi"
+
+BCH "chmod +x  $WRKdir/MAPOST.exe"
+
+echo "job command file < support tests"
+
+#                                                                               
+# Input data files                                                              
+#---------------------------------------                               
+BCHt   "Input data files"
+
+#MAR files                              
+BCHc "MARfil.dat and MAR files"
+
+BCH "rm -f $WRKdir/MARfil.dat"
+
+[ $marzip = "y" ] && Z=".gz" || Z=""
+
+i=0
+for MARfil in ${MARfil[@]} ; do
+  BCH
+  BCH "  #${MARfil[$i]}"
+  BCH
+  BCH "echo ; echo \" > ${MARfil[$i]}\" ; echo"
+  BCH "tmp=$STKmar/$domain/$runnam/${MARyr[$i]}"
+  BCH "smget \"\$tmp\" \"${MARfil[$i]}$Z\" \"$WRKdir/input\""
+  BCH "cd $WRKdir/input"
+  [ $marzip = "y" ] && BCH "ucX \"$WRKdir/input\" \"${MARfil[$i]}\" \"$Z\""
+  BCH "echo \"$WRKdir/input/${MARfil[$i]}\" >> $WRKdir/MARfil.dat"
+  i=$(( $i + 1 ))
+done
+
+echo "job command file < MARfil.dat"
+
+#LSC files                              
+BCHc "LSC files"
+
+BCH "rm -f $WRKdir/LSCfil.dat"
+
+[ $lsczip = "y" ] && Z=".gz" || Z=""
+
+i=0
+for LSCfil in ${LSCfil[@]} ; do
+  BCH
+  BCH "  #${LSCfil[$i]}"
+  BCH
+  BCH "echo ; echo \" > ${LSCfil[$i]}\" ; echo"
+  BCH "tmp=$STKlsc/$LSCreg/${LSCyr[$i]}"
+  BCH "smget \"\$tmp\" \"${LSCfil[$i]}$Z\" \"$WRKdir/input\""
+  BCH "cd $WRKdir/input"
+  [ $lsczip = "y" ] && BCH "ucX \"$WRKdir/input\" \"${LSCfil[$i]}\" \"$Z\""
+  BCH "echo \"$WRKdir/input/${LSCfil[$i]}\" >> $WRKdir/LSCfil.dat"
+  i=$(( $i + 1 ))
+done
+
+echo "job command file < LSCfil.dat"
+
+#MAPOST.ctr                             
+BCHc "MAPOST.ctr"
+
+BCH "rm -f  $WRKdir/MAPOST.ctr"
+
+[ ${#dlg} -eq 1 ] && dlg="00$dlg"
+[ ${#dlg} -eq 2 ] && dlg="0$dlg"
+[ ${#hlg} -eq 1 ] && hlg="0$hlg"
+
+BCH "echo ; echo \" > MAPOST.ctr\" ; echo"
+
+BCH "echo \"----|----1----|----2----|---------------------MAPOST---control-file------\" >  $WRKdir/MAPOST.ctr"
+BCH "echo \"------------------------+-----------------------------------+------------\" >> $WRKdir/MAPOST.ctr"
+BCH "echo \"$lsc        ${blank[13]}| Large-Scale model (ECM, LMz) = for future use  \" >> $WRKdir/MAPOST.ctr"
+BCH "echo \"MAR         ${blank[12]}| Regional model (MAR)                           \" >> $WRKdir/MAPOST.ctr"
+BCH "echo \"$stu        ${blank[13]}| Specific study (WEU, GRN, ANT, WAF...)         \" >> $WRKdir/MAPOST.ctr"
+BCH "echo \"------------------------+-----------------------------------+------------\" >> $WRKdir/MAPOST.ctr"
+BCH "echo \"$runnam          ${blank[40]}| Run name   \" >> $WRKdir/MAPOST.ctr"
+BCH "echo \"------------------------+-----------------------------------+------------\" >> $WRKdir/MAPOST.ctr"
+BCH "echo \"$yrI,$tmoI,$tdaI,$thrI  ${blank[9]}| Start date as YYYY,MM,DD,HH ${blank[19]}\" >> $WRKdir/MAPOST.ctr"
+
+#XF
+#dlg=$(( ${dlg#0} - 1 ))
+#hlg=18
+
+                    dlg2=${dlg#0}
+[ $dlg2 -le 9  ] && dlg2="00$dlg2"
+[ $dlg2 -le 99 ] && dlg2="0$dlg2"
+
+BCH "echo \"$dlg2,$hlg              ${blank[4]}| Run length as DDD,HH        ${blank[19]}\" >> $WRKdir/MAPOST.ctr"
+BCH "echo \"$dt                     ${blank[1]}| Step       as HH            ${blank[19]}\" >> $WRKdir/MAPOST.ctr"
+BCH "echo \"------------------------|------------------------------------------------\" >> $WRKdir/MAPOST.ctr"
+BCH "echo \"1           ${blank[12]}| Map type (0=polar,1=stereo,2=lambert)          \" >> $WRKdir/MAPOST.ctr"
+BCH "echo \"------------------------|------------------------------------------------\" >> $WRKdir/MAPOST.ctr"
+BCH "echo \"$HMD        ${blank[15]}| Compute horiz. maps+averages / dynamics  (F/T) \" >> $WRKdir/MAPOST.ctr"
+BCH "echo \"$SOS        ${blank[15]}|         station observations (surface)   (F/T) \" >> $WRKdir/MAPOST.ctr"
+BCH "echo \"$LIB        ${blank[15]}|         local impact of boundaries (MKE) (F/T) \" >> $WRKdir/MAPOST.ctr"
+BCH "echo \"$VPB        ${blank[15]}|         vertical profiles of RLS-MAR bias(F/T) \" >> $WRKdir/MAPOST.ctr"
+BCH "echo \"$SMV        ${blank[15]}|         Surface + misc. values           (F/T) \" >> $WRKdir/MAPOST.ctr"
+BCH "echo \"$STP        ${blank[15]}|         Surface air temp. & precipitation(F/T) \" >> $WRKdir/MAPOST.ctr"
+BCH "echo \"------------------------|------------------------------------------------\" >> $WRKdir/MAPOST.ctr"
+BCH "echo \"____|____1____|____2____|_____________________MAPOST___control_file______\" >> $WRKdir/MAPOST.ctr"
+
+echo "job command file < MAPOST.ctr"
+
+#                                                                               
+# Stock initialisation                                                          
+#---------------------------------------                               
+BCHt   "Stock initialisation"
+
+  #creating needed directory on stock     
+
+case $cluster in
+(nic|linux)  # MAPOST output file stored in its initial year directory
+if [ $sftp = "y" ] ; then
+BCH "$gateway $ssh $ustock@$stock mkdir -p $STKmar/$domain/$runnam/$yrI/post"
+BCH "$gateway $ssh $ustock@$stock mkdir -p $STKmar/$domain/crash"
+else
+BCH "echo \"Info: \'550 Create directory operation failed\' <= directory existing\""
+BCH "aftp mkdir $STKmar"
+BCH "aftp mkdir $STKmar/$domain"
+BCH "aftp mkdir $STKmar/$domain/$runnam"
+BCH "aftp mkdir $STKmar/$domain/$runnam/$yrI"
+BCH "aftp mkdir $STKmar/$domain/$runnam/$yrI/post"
+BCH "aftp mkdir $STKmar/$domain/crash"
+fi
+;;
+#(linux)
+#BCH "[ ! -d $STKmar                           ] && mkdir $STKmar"
+#BCH "[ ! -d $STKmar/$domain                   ] && mkdir $STKmar/$domain"
+#BCH "[ ! -d $STKmar/$domain/$runnam           ] && mkdir $STKmar/$domain/$runnam"
+#BCH "[ ! -d $STKmar/$domain/$runnam/$yrI      ] && mkdir $STKmar/$domain/$runnam/$yrI"
+#BCH "[ ! -d $STKmar/$domain/$runnam/$yrI/post ] && mkdir $STKmar/$domain/$runnam/$yrI/post"
+#BCH "[ ! -d $STKmar/$domain/crash             ] && mkdir $STKmar/$domain/$crash"
+#;;
+#(idris) #(idris) #automatically created by mfput is nonexistent.
+#BCH "[ ! -d $STKmar                           ] && mkdir $STKmar"
+#BCH "[ ! -d $STKmar/$domain                   ] && mkdir $STKmar/$domain"
+#BCH "[ ! -d $STKmar/$domain/$runnam           ] && mkdir $STKmar/$domain/$runnam"
+#BCH "[ ! -d $STKmar/$domain/$runnam/$yrI      ] && mkdir $STKmar/$domain/$runnam/$yrI"
+#BCH "[ ! -d $STKmar/$domain/$runnam/$yrI/post ] && mkdir $STKmar/$domain/$runnam/$yrI/post"
+#BCH "[ ! -d $STKmar/$domain/crash             ] && mkdir $STKmar/$domain/$crash" ;;
+esac
+
+STKcrash=$STKmar/$domain/crash
+STKmapost=$STKmar/$domain/$runnam/$yrI/post
+
+echo "job command file < stock initialisation"
+
+#                                                                               
+# MAPOST launch                                                                 
+#---------------------------------------                               
+BCHt   "MAPOST launch"
+
+BCH "cd $WRKdir"
+case $cluster in
+(idris)     BCH "./MAPOST.exe > $WRKdir/MAPOST.log" ;;
+(nic|linux) BCH "./MAPOST.exe > $WRKdir/MAPOST.log" ;;
+esac
+BCH "echo"
+BCH "cp -fp  $WRKdir/MAPOST.log  $PMPdir/run/$job.log"
+BCH
+BCH "if [ -f $WRKdir/MPP.OK ] ; then"
+BCH "  echo \"MAPOST run: OK (\`date\`)\""
+BCH "else"
+BCH "  DAMNED \"MAPOST error (MPP.OK nonexistent) (\`date\`)\" \"exe\""
+BCH "  mv -f  $WRKdir  $WRKdix/$bch.\$host.CRASH"
+BCH "  tarX  \"$WRKdix\"  \"$bch.\$host.CRASH\""
+BCH "  [ \$? -ne 0 ] && END_EXIT"
+BCH "  rm -rf  $WRKdix/$bch.\$host.CRASH"
+if [ $pmpzip = "y" ] ; then
+BCH "  gzipX  \"$WRKdix\"  \"$bch.\$host.CRASH.tar\""
+BCH "  [ \$? -ne 0 ] && END_EXIT"
+BCH "  Z=.gz"
+else
+BCH "  Z=\"\""
+fi
+BCH "  smput \"$WRKdix\"  \"$bch.\$host.CRASH.tar\$Z\"  \"$STKcrash\""
+BCH "  [ \$? -eq 0 ] && rm -f  $WRKdix/$bch.\$host.CRASH.tar\$Z"
+BCH "  END_EXIT"
+BCH "fi"
+
+echo "job command file < MAPOST launch"
+
+#                                                                               
+# Backup: MAPOST output files                                                   
+#---------------------------------------                               
+BCHt   "Backup: MAPOST output files"
+
+#output directory content
+
+BCHc "output directory content"
+
+BCH "echo ; echo \"> output directory content\" ; echo"
+
+BCH "ls -l $WRKdir/output"
+
+#save output files
+
+PMPcdf=PMP.$runnam.$yrI.$tmoI.$tdaI.${thrI}-$dlg$hlg.nc
+  #PMP.b01.1993.12.01.00-03100.nc
+
+BCHc "PMPcdf ($PMPcdf)"
+
+BCH "echo ; echo \"> PMPcdf ($PMPcdf)\" ; echo"
+BCH "if [ ! -f $WRKdir/output/*${runnam}*.nc ] ; then"
+BCH "  DAMNED \"NetCDF output file nonexistent\""
+BCH "else"
+BCH "  mv -f  $WRKdir/output/*${runnam}*.nc  $WRKdir/output/$PMPcdf"
+if [ $pmpzip = "y" ] ; then
+BCH "  gzipX  \"$WRKdir/output\"  \"$PMPcdf\""
+BCH "  [ \$? -eq 0 ] && Z=.gz || Z=\"\""
+else
+BCH "  Z=\"\""
+fi
+BCH "  smput  \"$WRKdir/output\"  \"$PMPcdf\$Z\"  \"$STKmapost\""
+BCH "  [ \$? -eq 0 ] && rm -f  $WRKdir/$PMPcdf\$Z"
+BCH "fi"
+
+echo "job command file < backup: MAPOST output files"
+
+#                                                                               
+# Final job check                                                               
+#---------------------------------------                               
+BCHt   "Final job check"
+
+  #remove the $WRKdir directory          if the job is a success
+  #       the job command file in PMPdir                  
+
+BCH "  echo \"$job job executed successfully on $cluster\""
+[ $cluster != "idris" ] && BCH "  rm -rf $WRKdir"
+BCH "  mv  \$msg  \$msg.ok"
+
+echo "job command file < final job check"
+
+BCH
+BCH "echo \`date\`"
+BCH "echo"
+BCH
+BCH "END_EXIT"
+BCH
+
+#                                                                               
+# Job command file executable                                                   
+#---------------------------------------                               
+TITLE2 "Job command file executable"
+
+chmod +x  $PMPdir/run/$bch.cmd
+
+echo "job command file executable"
+
+echo

@@ -1,0 +1,1676 @@
+#!/bin/bash               
+#
+# E. Vanvyve / X. Fettweis - 08.10.2007
+#                                                                               
+# NAME                                                                          
+#                                                                               
+#   MAR - run MAR                                                               
+#                                                                               
+# SYNOPSIS                                                                      
+#                                                                               
+#   MAR  [-again MAR.ctr]  name  year  month  [slice]                           
+#                          name  year  month  day1    [slice]                   
+#                          name  year  month  day1    day2                      
+#                                                                               
+# OPERANDS                                                                      
+#                                                                               
+#   name     the name of the MAR run                     (e.g. a01 )     [a1+i2]
+#   year     year         of the period to run           (e.g. 1993)        [i4]
+#   month    month        of the period to run           (e.g. 12  )        [i2]
+#   day1     start day    of the period to run           (e.g. 02  )        [i2]
+#             (=> upto the day2 or end of the slice)                           
+#   slice    length steps of the period to run           (e.g. a   )        [a1]
+#              a = 1st fortnight of the month (01-15 )          (..-15)         
+#              b = 2nd fortnight of the month (16-28/29/30/31)  (..-28/29/30/31)
+#              c = 1st ten       of the month (01-10)           (..-10)         
+#              d = 2nd ten       of the month (11-20)           (..-20)         
+#              e = 3rd ten       of the month (21-28/29/30/31)  (..-28/29/30/31)
+#              o = entire month                                                 
+#                                                                               
+# [ -again MAR.ctr    the script MAR is run with a specific MAR.ctr file (EXACT 
+#                     name AND path)                                            
+#                     (e.g. MAR -again $HOME/a01/MAR.ctr.931201o a01 1993 12 a)]
+#                                                                               
+#                                                                               
+# DESCRIPTION                                                                   
+#                                                                               
+#   The MAR script prepares MAR for a run and creates the job command file. It  
+#   can be also used to relaunch a simulation, with this syntax :               
+#      MAR -again MAR.ctr  name  year  month...                                 
+#   where the MAR.ctr file is the appropriate file for the simulation (give its
+#   absolute path and full name).
+#                                                                               
+
+RAND=$RANDOM
+
+#-------------------------------------------------------------------------------
+# HELP                                                                          
+#-------------------------------------------------------------------------------
+
+[ ${#1} -eq 0 ] && head -42 $0 && exit 99
+
+
+#-------------------------------------------------------------------------------
+#  SCRIPT INITIALISATION                                                        
+#-------------------------------------------------------------------------------
+
+#                                                                               
+# User's parameters                                                             
+#---------------------------------------
+
+#INI.ctr (assumed: INI.ctr identical to the one used when no -again)
+
+tmp=`ls ${0%/*}/INI.ctr | wc -l`  #to avoid search in subdirectories
+[ $tmp -ne 1 ] && echo '@&?%! '"fatal error: ${0%/*}/INI.ctr non-existent" && exit
+
+control=${0%/*}/INI.ctr
+. $control
+
+#$0.ctr                                 
+
+if [ $1 = "-again" ] ; then  #automatic relaunched simulation
+  again="y"        #to jump over some unused parts of this script
+  control=$2
+  [ ! -f $control ] && echo '@&?%! '"fatal error: $control non-existent" && exit 99
+  shift 2
+else                         #online    launched   simulation
+  again="n"
+  #tmp=`find ${0%/*} -name ${0##*/}.ctr -print | wc -l`
+  #tmp=`ls ${0%/*} | grep -c ${0##*/}.ctr` #to avoid search in subdirectories
+  tmp=`ls $0.ctr | wc -l`  #to avoid search in subdirectories
+  [ $tmp -ne 1 ] && echo '@&?%! '"fatal error: $0.ctr non-existent" && exit 99
+
+  #control=`find ${0%/*} -name ${0##*/}.ctr -print | head -1`
+  control=$0.ctr
+fi
+
+. $control
+
+#FUNCTIONS
+
+. FUNCTIONS
+
+#                                                                               
+# System initialisation                                                         
+#---------------------------------------                             
+
+#main script parameters values          
+
+case $cluster in (nic|linux|ceci|foehn|nasa|froggy) echo ;;
+                 (idris) if [ `uname -n | grep -c "uqbar"` -eq 0 ] ; then
+                           echo '@&?%! '"you must be logged in uqbar if you want to execute the script 'MAR' without getting into deep troubles..." && exit 99 #to have correct HOME path in the script.cmd to submit in batch!
+                         else
+                           echo
+                         fi ;; 
+                 (*) echo '@&?%! '"script not over for $cluster" && exit 99 ;;
+esac
+
+#-------------------------------------------------------------------------------
+#  TITLE                                                                        
+#-------------------------------------------------------------------------------
+TITLE0 "MAR PROCESSING"
+
+
+#-------------------------------------------------------------------------------
+#  1 - INITIALISATION                                                           
+#-------------------------------------------------------------------------------
+TITLE1 "INITIALISATION"
+
+#                                                                               
+# Your parameters (MAR.ctr)                                                     
+#---------------------------------------                             
+TITLE2 "Your parameters (MAR.ctr)"
+
+#script argument                        
+
+usage="\nusage: MAR  [-again MAR.ctr]  name  year  month  [slice]\n                              name  year  month  day1    [slice]\n                              name  year  month  day1    day2"
+
+[ ${#1} -eq 0 ] && DAMNED "1st argument missing [name]\n$usage"
+[ ${#2} -eq 0 ] && DAMNED "2nd argument missing [period: year]\n$usage"
+[ ${#3} -eq 0 ] && DAMNED "3rd argument missing [period: month]\n$usage"
+zut="zut"
+arg1=$1
+arg2=$2
+arg3=$3
+arg4=${4:-$zut}
+arg5=${5:-$zut}
+arg6=${6:-$zut}
+
+#MAR.ctr arguments: user's dir. paths   
+
+MARbin=${MARbin%/}
+SIMdir=${SIMdir%/}
+MARsrc=${MARsrc%/}
+STKmar=${STKmar%/} ; [ ${#STKmar} -eq 0 ] && STKmar="."
+WRKdir=${WRKdir%/}
+WRKmsg=${WRKmsg%/}
+
+[ ${#version} -gt 0 ] && version=".${version#\.}"
+[ ${#Version} -gt 0 ] && version=".${Version#\.}"
+
+#MAR.ctr arguments: y/n values          
+
+case $nstzip in ([!yn]) DAMNED "parameter error: nstzip [$nstzip]" ;; esac
+case $marzip in ([!yn]) DAMNED "parameter error: marzip [$marzip]" ;; esac
+
+case $CA in ([!TF]) DAMNED "parameter error: conv. adjustement [$CA]" ;; esac
+case $SV in ([!TF]) DAMNED "parameter error: svat scheme [$SV]" ;; esac
+case $SN in ([!TF]) DAMNED "parameter error: snow model [$SN]" ;; esac
+case $PO in ([!TF]) DAMNED "parameter error: snow model [$PO]" ;; esac
+
+#world region                           
+
+case $WLDreg in
+  (EU) tmp="Europe" ;;
+  (WA) tmp="West Africa" ;;
+  (AN) tmp="Antarctica" ;;
+  (GR) tmp="Greenland" ;;
+  (BE) tmp="Belgium" ;;
+  (*)  tmp="undiscovered land perhaps...?" ;;
+esac
+
+#user's parameters                      
+
+echo "general world region   : $WLDreg ($tmp)"
+echo "global initial date    : $d1I/$moI/$yrI"
+echo "global final   date    : $d2F/$moF/$yrF"
+echo
+echo "SIMdir directory       : $SIMdir"
+echo "MARsrc directory       : $MARsrc"
+echo "MAR directory on stock : $STKmar"
+echo "batched job messages in: $WRKmsg"
+echo "work directory for job : $WRKdir"
+echo
+echo "MAR convec. adjustement: $CA"
+case $SV in (T) tmp=SISVAT ;; (F) tmp="force restore" ;; esac
+echo "MAR surface model      : $tmp"
+echo "MAR snow model         : $SN"
+echo "MAR polynia model      : $PO"
+echo
+[ $cluster = "idris" -a $nstzip = "y" ] && tmp="(not advised)" || tmp=""
+echo "unzip input files (NST): $nstzip $tmp"
+[ $cluster = "idris" -a $marzip = "y" ] && tmp="(not advised)" || tmp=""
+echo "gzip  MAR output files : $marzip $tmp"
+echo
+echo "cluster                : $cluster ($spcned kb - $walltime h walltime)"
+if [ $cluster = "linux" ] ; then
+echo "job submission with PBS: $job_pbs"
+fi
+echo "stock address          : $stock"
+echo
+
+[ $again = "n" ] && echo "<return>" 
+
+#                                                                               
+# Check the run name                                                            
+#---------------------------------------                             
+TITLE2 "Check the run name"
+
+runnam=$arg1
+
+#length                                 
+
+[ ${#runnam} -ne 3 ] && DAMNED "format error: run name (a3) [$runnam]"
+
+echo "run name: $runnam"
+echo "associated domain: $WLDreg${runnam%??}"
+echo "associated world region: $WLDreg"
+
+#name denomination                    
+
+  #domain
+k=0
+for i in `ls $SIMdir | awk '{ print($0) }'` ; do
+  j=${i#$WLDreg} 
+  [ ${#j} -eq 1 ] && [ ${#j} -eq 1 -a ${runnam%??} = $j ] && k=$(($k+1))
+done
+[ $k -ne 1 ] && DAMNED "format error: run name [$runnam]. Associated domain $WLDreg${runnam%??} ($WLDreg+${runnam%??}) non-existent."
+
+#                                                                               
+# Check the simulation dates                                                    
+#---------------------------------------                             
+TITLE2 "Check the simulation dates"
+
+  #./MAR  $1      $2      $3      $4      $5                
+  #./MAR  runnam  yr      mo      [slice]          (case 1) 
+  #./MAR  runnam  yr      mo      d1      [slice]  (case 2) 
+  #./MAR  runnam  yr      mo      d1      d2       (case 3) 
+
+  #yr = year (i4) ; mo = month (i2) ; d1 = stard day (i2) ; d2 = end day (i2) 
+  #slice = current slice of the simulation (not for the entire sim. period)   
+
+  #slice=o     > entire    (...-end of the month)      
+  #slice=a/b   > fortnight (...-15 & 16-...)           
+  #slice=c/d/e > ten       (...-10 & 11-20 & 21-...)   
+
+#current period                                                                 
+
+#check the arguments validity (& format)
+
+yr="$arg2" ; mo="$arg3" ; d1="00" ; d2="00"
+
+[ ${#yr} -ne 4 ] && DAMNED "syntax error: wrong year (yr) [$yr]"
+[ ${#mo} -ne 2 ] && DAMNED "syntax error: wrong month (mo) [$mo]"
+
+case $arg4 in 
+  ($zut) slice="o" ;                              #case 1
+         d1=$zut ;
+         d2=$zut ;;
+  (o|a|b|c|d|e) slice="$4" ;                      #case 1
+                d1=$zut ;
+                d2=$zut ;;
+  ([0-9][0-9]) d1="$4" ;                          #cases 2, 3
+               case $arg5 in
+                 ($zut) slice="o" ;               #case 2
+                        d2=$zut ;;
+                 (o|a|b|c|d|e) slice="$5" ;       #case 2
+                               d2=$zut ;;
+                 ([0-9][0-9]) d2="$5" ;           #case 3
+                              slice="-" ;;
+                 (*) DAMNED "argument error: arg5 [$arg5]" ;;
+               esac ;;
+  (*) DAMNED "argument error: arg4 [$arg4]" ;;
+esac
+
+#check the arguments value              
+
+set_time_arrays $yr
+
+if [ $yr -lt 1850 -o $yr -gt 2200 ] ; then
+  DAMNED "value error: year $yr unavailable (1850-2200)"
+fi
+
+[ $mo -lt 1 -o $mo -gt 12 ] && DAMNED "value error: unvalid month [$mo]"
+tmp="${day[10#$mo]}"
+
+if [ $d1 != $zut ] ; then
+  [ $d1 -lt 1 -o $d1 -gt $tmp ] && DAMNED "value error: wrong start day [$d1]"
+fi
+if [ $d2 != $zut ] ; then
+  [ $d2 -lt 1 -o $d2 -gt $tmp ] && DAMNED "value error: wrong end day [$d2]"
+fi
+if [ $d1 != $zut -a $d2 != $zut ] ; then
+  [ $d1 -gt $d2 ] && DAMNED "value error: start day > end day [$d1/$d2]"
+fi
+
+#set missing variables to their right value
+
+if   [ $d1 = $zut -a $d2 = $zut ] ; then         #case 1
+  case $slice in
+    (o) d1="01" && d2="${day[10#$mo]}" ;;
+    (a) d1="01" && d2="15" ;;
+    (b) d1="16" && d2="${day[10#$mo]}" ;;
+    (c) d1="01" && d2="10" ;;
+    (d) d1="11" && d2="20" ;;
+    (e) d1="21" && d2="${day[10#$mo]}" ;;
+  esac
+elif [ $d1 != $zut -a $d2 = $zut ] ; then        #case 2
+  case $slice in
+    (o) [ $d1 -le ${day[10#$mo]} ] && d2="${day[10#$mo]}" || DAMNED "value: fatal error in start day and slice [$d1/$slice]" ;;
+    (a) [ $d1 -le 15 ] && d2="15" || DAMNED "value: fatal error in start day and slice [$d1/$slice]" ;;
+    (b) [ $d1 -ge 16 ] && d2="${day[10#$mo]}" || DAMNED "value: fatal error in start day and slice [$d1/$slice]" ;;
+    (c) [ $d1 -le 10 ] && d2="10" || DAMNED "value: fatal error in start day and slice" ;;
+    (d) [ $d1 -ge 11 -a $d1 -le 20 ] && d2="20" || DAMNED "value: fatal error in start day and slice [$d1/$slice]" ;;
+    (e) [ $d1 -ge 21 ] && d2="${day[10#$mo]}" || DAMNED "value: fatal error in start day and slice [$d1/$slice]" ;;
+  esac
+fi                                               #case 3: no test needed
+
+tyr=${yr#??}
+[ ${#mo} -eq 1 ] && tmo="0$mo" || tmo="$mo"
+[ ${#d1} -eq 1 ] && td1="0$d1" || td1="$d1"
+[ ${#d2} -eq 1 ] && td2="0$d2" || td2="$d2"
+
+echo "current period: $td1 ${month[10#$mo]} $yr to $td2 ${month[10#$mo]} $yr (slice $slice)"
+
+# global dates                                                                  
+
+#length
+
+[ ${#d1I} -ne 2 ] && DAMNED "format error: global begin day (dd) [$d1I]"
+[ ${#d2F} -ne 2 ] && DAMNED "format error: global end day (dd) [$d2F]"
+[ ${#moI} -ne 2 ] && DAMNED "format error: global begin month (mm) [$moI]"
+[ ${#moF} -ne 2 ] && DAMNED "format error: global end month (mm) [$moF]"
+[ ${#yrI} -ne 4 ] && DAMNED "format error: global begin year (yyyy) [$yrI]"
+[ ${#yrF} -ne 4 ] && DAMNED "format error: global end year (yyyy) [$yrF]"
+
+#start date < end date
+
+[ $yrF -lt $yrI ] && DAMNED "value error: global end year < begin year [$yrI/$yrF]"
+if [ $yrF -eq $yrI ] ; then
+  [ $moF -lt $moI ] && DAMNED "value error: global end month < begin month [$moI/$moF]"
+fi
+if [ $moF -eq $moI ] ; then
+  [ $d2F -lt $d1I ] && DAMNED "value error: global end day < begin day [$d1I/$d2F]"
+fi
+
+#available dates
+
+if [ $yrI -lt 1850 -o $yrI -gt 2200 ] ; then
+  DAMNED "value error: global period year $yrI unavailable (1850-2200)"
+fi
+if [ $yrF -lt 1850 -o $yrF -gt 2200 ] ; then
+  DAMNED "value error: global period year $yrF unavailable (1850-2200)"
+fi
+
+tyrI=${yrI#??}
+tyrF=${yrF#??}
+tmoI=${moI} ; [ ${#tmoI} -eq 1 ] && tmoI="0"$tmoI
+tmoF=${moF} ; [ ${#tmoF} -eq 1 ] && tmoF="0"$tmoF
+td1I=${d1I} ; [ ${#td1I} -eq 1 ] && td1I="0"$td1I
+td2F=${d2F} ; [ ${#td2F} -eq 1 ] && td2F="0"$td2F
+
+echo "global  period: $td1I ${month[10#$moI]} $yrI to $td2F ${month[10#$moF]} $yrF"
+
+# searching next period                                                         
+
+d1N=$(( $d2 + 1 ))
+
+if [ $d1N -gt ${day[10#$mo]} ] ; then
+  d1N="01"
+  moN=$(( 10#$mo + 1 ))
+else
+  moN="$mo"
+fi
+
+if [ $moN -gt 12 ] ; then
+  moN="01"
+  yrN=$(( 10#$yr + 1 ))
+else
+  yrN=$yr
+fi
+
+[ $yrN -gt 2200 ] && DAMNED "value error: unvalid next year [$yrN]"
+
+case $slice in (o) sliceN="$slice" ;;
+               (a) sliceN="b" ;;
+               (b) sliceN="a" ;;
+               (c) sliceN="d" ;;
+               (d) sliceN="e" ;;
+               (e) sliceN="c" ;;
+               (-) sliceN="-" ;; esac
+
+case $sliceN in (o) d2N="${day[10#$moN]}" ;;
+                (a) d2N="15" ;;
+                (b) d2N="${day[10#$moN]}" ;;
+                (c) d2N="10" ;;
+                (d) d2N="20" ;;
+                (e) d2N="${day[10#$moN]}" ;;
+                (-) d2N="$d1N" ;; esac
+
+tyrN=${yrN#??}
+[ ${#moN} -eq 1 ] && tmoN="0$moN" || tmoN="$moN"
+[ ${#d1N} -eq 1 ] && td1N="0$d1N" || td1N="$d1N"
+[ ${#d2N} -eq 1 ] && td2N="0$d2N" || td2N="$d2N"
+
+#next slice > last one ?
+
+if [ $yr -eq $yrF -a $mo -eq $moF -a $d2 -eq $d2F ] ; then
+  echo "no next period"
+else
+  echo "next    period: $td1N ${month[10#$moN]} $yrN to $td2N ${month[10#$moN]} $yrN (slice $sliceN)"
+fi
+
+#                                                                               
+# Set paths                                                                     
+#---------------------------------------                             
+TITLE2 "Set paths"
+
+domain=$WLDreg${runnam%??}        #e.g. EUa=EU+a
+DOMdir=$SIMdir/$domain
+INPUTdir=$DOMdir/input
+CTRLdir=$DOMdir/ctrl/$runnam
+CODEdir=$DOMdir/code/$runnam
+RUNdir=$DOMdir/run/$runnam
+
+mkdir -p $CTRLdir 2>/dev/null
+mkdir -p $CODEdir 2>/dev/null
+mkdir -p $RUNdir  2>/dev/null
+
+echo "simulation domain directory path: $DOMdir"
+echo "simulation input  directory path: $DOMdir/input"
+echo "simulation ctrl   directory path: $DOMdir/ctrl/$runnam"
+echo "simulation code   directory path: $DOMdir/code/$runnam"
+echo "simulation run    directory path: $DOMdir/run/$runnam"
+
+#                                                                               
+# Check the MAR time steps                                                      
+#---------------------------------------                             
+TITLE2 "Check the MAR time steps"
+
+#missing value                                                                  
+
+dtDiff="$dt" 
+dtPhys="$dt"
+
+[ ${#dt} -eq 0 ] && DAMNED "fatal error: no slow-dynamics time step (dt) specified"
+[ ${#each} -eq 0 ] && DAMNED "fatal error: no output time step (each) specified"
+[ ${#ntfast} -eq 0 ] && DAMNED "fatal error: no fast time step (ntfast) specified"
+[ ${#dtDiff} -eq 0 ] && DAMNED "fatal error: no diffusion time step (dtDiff) specified"
+[ ${#dtPhys} -eq 0 ] && DAMNED "fatal error: no surf. physics time step (dtPhys) specified"
+[ ${#dtRadi} -eq 0 ] && DAMNED "fatal error: no radiat. transfer time step (dtRadi) specified"
+
+#decimal value unauthorized                                                     
+
+case $dt     in (*.*) DAMNED "value error: decimal in slow-dynamics time step [$dt]" ;; esac
+case $each   in (*.*) DAMNED "value error: decimal in output time step [$each]" ;; esac
+case $ntfast in (*.*) DAMNED "value error: decimal in fast time step [$ntfast]" ;; esac
+case $dtDiff in (*.*) DAMNED "value error: decimal in diffusion time step [$dtDiff]" ;; esac
+case $dtPhys in (*.*) DAMNED "value error: decimal in surface physics time step [$dtPhys]" ;; esac
+case $dtRadi in (*.*) DAMNED "value error: decimal in radiative transfer time step [$dtRadi]" ;; esac
+
+#dt                                                                             
+
+echo "slow dynamics        dt: $dt s"
+
+#each and nboucl                                                                
+
+i=""
+if [ $each -eq 0 ] ; then
+  each=360        #default: output every 6 hours
+  i=" (automatic)"
+fi
+tmp=$(( $each * 60 % $dt ))
+if [ $tmp -ne 0 ] ; then
+  DAMNED "value error: output time step (each) incompatible with the slow-dynamics time step (dt) [$each/$dt]"
+fi
+
+nboucl=$(( $each * 60 / $dt ))
+
+echo "output           nboucl: $nboucl (automatic) [each $each min$i]"
+
+#np                                                                             
+
+tmp=$(( ( $d2 - $d1 + 1 ) * 24 * 3600 % ( $dt * $nboucl ) ))
+if [ $tmp -ne 0 ] ; then
+  DAMNED "value error: np prints (np) impossible to compute (check dt, nboucl, d1, d2)"
+fi
+
+np=$(( ( $d2 - $d1 + 1 ) * 24 * 3600 / ( $dt * $nboucl ) ))
+
+echo "nb prints            np: -$np (automatic)"
+
+#ntfast                                                                         
+
+i=""
+if [ $ntfast -eq 0 ] ; then
+  ntfast=3        #default: 3
+  i="(automatic)"
+fi
+
+echo "nb fast over dt  ntfast: $ntfast $i"
+
+#dtDiff                                                                         
+
+i=""
+if [ $dtDiff -eq 0 ] ; then       #default = dt
+  dtDiff=$dt
+  i="(automatic)"
+else                              #user defined
+  if [ $dtDiff -ne $dt ] ; then         #error
+    DAMNED "value error: diffusion time step (dtDiff) not equal to the slow-dynamics time step (dt) $[$dtDiff/$dt]"
+  fi
+fi
+
+echo "diffusion        dtDiff: $dtDiff s $i"
+
+#dtPhys                                                                         
+
+i=""
+if [ $dtPhys -eq 0 ] ; then     #default = dt
+  dtPhys=$dt
+  i="(automatic)"
+else                            #user defined
+  if [ $dtPhys -ne $dt ] ; then        #error
+    DAMNED "value error: surf. physics time step (dtPhys) not equal to the slow-dynamics time step (dt) $[$dtDiff/$dt]"
+  fi
+fi
+
+echo "surface physics  dtPhys: $dtPhys s $i"
+
+#dtRadi                                                                         
+
+i=""
+if [ $dtRadi -eq 0 ] ; then     #default = 3600 s
+  dtRadi=3600
+  i="(automatic)"
+fi
+[ $(( $dtRadi % $dt )) -ne 0 ] && DAMNED "value error: radiat. transfer time step (dtRadi) not a multiple of the slow-dynamics time step (dt) [$dtRadi/$dt]"
+
+echo "radiat. transfer dtRadi: $dtRadi s $i"
+
+#                                                                               
+# Save your MAR.ctr file                                                        
+#---------------------------------------                             
+TITLE2 "Save your MAR.ctr file"
+
+MARctr=MAR.ctr.$tyrI$tmoI${td1I}-$tyrF$tmoF$td2F
+ #e.g. MAR.ctr.931201-931231 (global and end dates)
+
+if [ $again = "n" ] ; then
+  cp -fp  $0.ctr  $CTRLdir/$MARctr
+  chmod -x  $CTRLdir/$MARctr
+  echo "cp: $0.ctr -> $CTRLdir/$MARctr"
+else
+  echo "cp: $CTRLdir/$MARctr kept"
+  ln -sf $CTRLdir/$MARctr $RUNdir
+fi
+
+#
+# MARtime.ctr
+#---------------------------------------   
+
+[ -f $CTRLdir/MARdt.dat   ] && mv    $CTRLdir/MARdt.dat $CTRLdir/MARdt.ctr
+
+[ -f $CTRLdir/MARtime.ctr ] && rm -f $CTRLdir/MARtime.ctr
+
+
+if [ -f $CTRLdir/MARdt.ctr ] ; then
+
+ tmp_head=`grep "$yr ${mo#0} ${d1#0} " $CTRLdir/MARdt.ctr | head -1`
+ tmp_heada=`grep "$yr ${mo} ${d1} "    $CTRLdir/MARdt.ctr | head -1`
+ tmp_headb=`grep "$yr 0${mo} ${d1} "   $CTRLdir/MARdt.ctr | head -1`
+
+ tmp_tail=`grep "$yr ${mo#0} ${d1#0} " $CTRLdir/MARdt.ctr | tail -1`
+ tmp_taila=`grep "$yr ${mo} ${d1} "    $CTRLdir/MARdt.ctr | tail -1`
+ tmp_tailb=`grep "$yr 0${mo} ${d1} "   $CTRLdir/MARdt.ctr | tail -1`
+
+  tmp_next=`grep "$yr ${mo#0} ${d1#0} " $CTRLdir/MARdt.ctr | grep next | tail -1`
+
+    [ ${#tmp_heada} -gt 0 ] && tmp_head=$tmp_heada
+    [ ${#tmp_headb} -gt 0 ] && tmp_head=$tmp_headb
+
+    [ ${#tmp_taila} -gt 0 ] && tmp_tail=$tmp_taila
+    [ ${#tmp_tailb} -gt 0 ] && tmp_tail=$tmp_tailb
+
+ if [ ${#tmp_tail} -gt 0 ]  ; then
+
+  dt_tail=`echo $tmp_tail | awk '{print $4}'`
+  dt_head=`echo $tmp_head | awk '{print $4}'`
+
+  dt_next=`echo $tmp_next | awk '{print $4}'`
+
+                               dtold=$dt_tail
+  [ $dt_head -gt $dt_tail ] && dtold=$dt_head
+  [ ${#dt_next} -gt 0 ]     && dtold=$dt_next
+
+  dtnew=`echo $tmp_tail | awk '{print $5}'`
+
+  TITLE2 "MARtime.ctr"
+
+  echo "job command file < $CTRLdir/MARtime.ctr input data files"
+
+  [ $dtnew -lt $dt ] && \
+  echo "$yrN ${moN#0} ${d1N#0} $dtnew $dt next" >> $CTRLdir/MARdt.ctr 
+  echo "$yr ${mo#0} ${d1#0} $dtold $dtnew"      >> $CTRLdir/MARtime.ctr 
+
+  [ $dtnew -eq $dtold ] && [ $dtnew -lt $dt ] && \
+  touch "$HOME/WARNING_MARtime_${runnam}_${yr}_${mo#0}_${d1#0}.ctr"
+
+  dt=$dtnew ;  dtDiff=$dt ; dtPhys=$dt
+  nboucl=$(( 360 * 60 / $dt ))
+
+ fi
+
+fi
+
+#-------------------------------------------------------------------------------
+#  2 - MAR PROCESSING BATCH COMMAND FILE                                        
+#-------------------------------------------------------------------------------
+TITLE1 "MAR PROCESSING BATCH COMMAND FILE"
+
+#                                                                               
+# Job command file setup                                                        
+#---------------------------------------                             
+TITLE2 "Job command file setup"
+
+bch="MAR_$WLDreg$runnam.$tyr.$tmo.${td1}-$td2"
+  #> MAR_EUt01.93.12.01-31*            batch command file                       
+  #  MAR_EUt01.93.12.01-31.eole.eo     batch command file standard error/output 
+  #  MAR_EUt01.93.12.01-31.eole.???    batch command file state (in $WRKmsg)    
+  #  MAR_EUt01.93.12.01-31/            simulation directory on scratch          
+
+job="$runnam$tyr$tmo$td1$slice"       #job name for the batch queue (t01931201a)
+
+if [ -f $RUNdir/$bch.cmd ] ; then
+  if [ $again = "y" ] ; then
+    echo "rm: existing $RUNdir/$bch.cmd"
+    if [ -f $RUNdir/crash$tyr$tmo$td1$td2 ] ; then
+      echo "mv: $RUNdir/$bch.cmd $RUNdir/$bch.cmd-crash (crash$tyr$tmo$td1$td2)"
+      mv -f $RUNdir/$bch.cmd $RUNdir/$bch.cmd-crash
+    fi
+    rm -f $RUNdir/$bch.cmd
+  else
+    ERROR "job command file $bch.cmd existing. Delete it?"
+    rm -f $RUNdir/$bch.cmd
+  fi
+fi
+touch $RUNdir/$bch.cmd
+echo "job command file: $RUNdir/$bch.cmd"
+                                           
+CMDfile=$RUNdir/$bch.cmd
+
+##########################################
+
+if [ -z $NBR_CPU ] ; then
+ echo "NBR_CPU not defined in MAR.ctr!!"
+ exit
+fi
+
+##########################################
+
+
+
+#                                                                               
+# Job command file content                                                      
+#---------------------------------------                             
+TITLE2 "Job command file content"
+
+#                                                                               
+# Batch specifications                                                          
+#---------------------------------------                             
+
+if [ $dt -le 10 ] ; then 
+ echo "ERROR dt=$dt"
+ BCH "exit"
+ exit
+fi
+
+
+case $cluster in
+(nic)
+  BCH "#!/bin/bash"
+  BCH "#job name"  
+  BCH "#$ -N $job" 
+ #BCH "#environment"
+ #BCH "#$ -V"      
+  BCH "#memory request"
+  BCH "#$ -l h_vmem=600M"
+  BCH "#$ -l h_rt=$walltime:0:0"
+  BCH "#$ -l highmem=false"
+  BCH "#$ -pe snode $NBR_CPU"
+  BCH "#$ -j y"
+  BCH "#$ -o $WRKmsg/$bch.eo" 
+  BCH "#$ -cwd" ;;
+(ceci)
+  BCH "#!/bin/bash"
+  BCH "#SBATCH --job-name=$job"
+  BCH "#SBATCH --mail-user=$Email"
+  BCH "#SBATCH --mail-type=FAIL"
+  BCH "#SBATCH --time=0-$walltime:00:00"
+  BCH "#SBATCH --ntasks=1"
+  BCH "#SBATCH --cpus-per-task=$NBR_CPU"
+  BCH "#SBATCH --ntasks-per-node=1"
+  BCH "#SBATCH --mem-per-cpu=600"
+  BCH "#SBATCH --output=$WRKmsg/$bch-%N-%j.eo" ;;
+(idris)
+  walltime=$(( $walltime * 3600 ))
+  tmp=$(( $walltime - 2000 ))
+  BCH "#!/bin/ksh"
+  BCH "#@\$-lT $walltime"    #Temps CPU limite du travail en secondes
+  BCH "#@\$-lt $tmp"         #Temps limite de chaque processus
+  BCH "#@\$-lM 4gb"          #Memoire totale occupee par un travail NQS
+  BCH "#@\$-nr"              #pas de restart en cas de plantage de la machine
+  BCH "#@\$-eo"              #Sorties stdout et stderr dans le meme fichier
+  BCH "#@\$-o $WRKmsg/$bch.eo"
+  BCH "#@\$-r $job"
+  BCH "export F_PROGINF=detail" # Parametres d'affichage des performances
+  BCH "export F_FTRACE=yes" ;;
+(linux)
+  BCH "#!/bin/bash"
+  BCH "#PBS -N $job"
+  BCH "#PBS -o $WRKmsg/$bch.eo" 
+  BCH "#PBS -l nodes=1:ppn=$NBR_CPU"
+  BCH "#PBS -m a"
+  BCH "#PBS -r y"
+  BCH "#PBS -M $Email"
+ #BCH "#PBS -l select=1:ncpus=$NBR_CPU:vmem=2000mb:mpiprocs=1:ompthreads=$NBR_CPU"
+ #BCH "#PBS -l pvmem=3000mb"
+ #BCH "#PBS -l walltime=$walltime:00:00"
+ #BCH "#PBS -W group_list=polar"
+  BCH "#PBS -j oe" ;;
+(foehn|froggy)
+  BCH "#!/bin/bash"
+  BCH "#OAR -n $job"
+  BCH "#OAR --stdout $WRKmsg/$bch.o"
+  BCH "#OAR --stderr $WRKmsg/$bch.e"
+  BCH "#OAR --project regional-climate"
+  BCH "#OAR -l nodes=1/core=$NBR_CPU,walltime=$walltime:00:00" ;;
+(nasa)
+  BCH "#!/bin/bash"
+  BCH "#SBATCH --job-name=$job"
+  BCH "#SBATCH --mail-user=$Email"
+  BCH "#SBATCH --mail-type=FAIL"
+  BCH "#SBATCH -t $walltime:00:00"
+  BCH "#SBATCH -N 1"
+  BCH "#SBATCH -A S1001"
+  BCH "#SBATCH --ntasks-per-node=$NBR_CPU"
+  BCH "#SBATCH --output=$WRKmsg/$bch-%N-%j.eo" ;;
+esac
+BCH ". $MARbin/INI.ctr"
+BCH ". $MARbin/FUNCTIONS"
+
+BCH "  export         NBR_CPU=$NBR_CPU"
+BCH "  export OMP_NUM_THREADS=\$NBR_CPU"
+
+echo "job command file < batch specifications"
+
+#                                                                               
+# Initialisation                                                                
+#---------------------------------------                             
+BCHt   "Initialisation"
+
+#variables definition                   
+
+BCHc "variables definition"
+
+BCH "host=\`hostname -s\`"
+
+#job messages file in $WRKmsg           
+
+BCHc "job messages file in $WRKmsg"
+
+BCH "if [ ! -f $RUNdir/crash$tyr$tmo$td1$td2 ] ; then"
+BCH "  rm -f $WRKmsg/$bch.\${host%\${host#???}}*"
+BCH "else"  #keep a trace of the bug
+BCH "  for fil in \`ls $WRKmsg/$bch*\` ; do"
+BCH "    mv -f \$fil \${fil}-crash"
+BCH "  done"
+BCH "fi"
+
+case $cluster in
+(linux|nic|ceci|nasa|foehn|froggy)
+  BCH "msg=$WRKmsg/$bch.\$host" ;;
+(idris)
+  BCH "msg=$WRKmsg/$bch" ;; #idris: if any change in this line, also change
+                            #the file name of stderr/out output of the job
+                            #(NQS instructions)
+esac
+BCH "touch \$msg"
+
+echo "job command file < initialisation"
+
+#                                                                               
+# Job informations                                                              
+#---------------------------------------                             
+BCHt   "Job informations"
+
+BCH "[ -d $WRKdir ] || mkdir $WRKdir"
+BCH
+BCH "echo \"Begin (initial) : $td1/$tmo/$yr ($td1I/$tmoI/$yrI)\""
+BCH "echo \"End   (final  ) : $td2/$tmo/$yr ($td2F/$tmoF/$yrF)\""
+BCH "echo"
+BCH "echo \"Domain          : $domain ($DOMdir)\""
+BCH "echo"
+BCH "echo \"Date            : \`date\`\""
+BCH "echo \"Host            : \$host\""
+BCH "echo \"Work directory  : $WRKdir\""
+BCH "echo \"Messages in     : $WRKmsg\""
+
+[ ! -d $MARsim/bin/run ] && mkdir $MARsim/bin/run
+
+BCH "echo \"\$host \`date +\"%Y-%m-%d %H:%M\"\` $runnam $yr $mo $td1 $td2 $dt \$NBR_CPU\" >> $MARsim/bin/run/$runnam"
+
+
+echo "job command file < job informations"
+
+#                                                                               
+# Work directory
+#---------------------------------------                             
+BCHt   "Work directory"
+
+#work directory ($WRKdir/$bch)          
+
+BCHc "work directory ($WRKdir/$bch)"
+
+if [ $cluster = "nic" ] ; then
+ BCH "tmp=\`df -k $WRKdir | tail -1 | awk '{print(\$4)}'\`"
+ BCH "if [ \$tmp -le 2000000 ] ; then"
+ BCH " echo \"Not space left on device on \`hostname\` at \`date\`\""
+ BCH "#qsub $RUNdir/$bch.cmd"
+ BCH " sleep 120" 
+ BCH " END_EXIT"
+ BCH "fi"
+fi
+
+BCH "[ ! -d $WRKdir ] && mkdir $WRKdir"
+BCH
+BCH "if [ ! -d $WRKdir/$bch ] ; then"
+BCH "  mkdir   $WRKdir/$bch ; err=\$?"
+BCH "else"
+BCH "  rm -rf  $WRKdir/$bch"
+BCH "  mkdir   $WRKdir/$bch ; err=\$?"
+BCH "  echo \"rm: existing $WRKdir/$bch\""
+BCH "fi"
+BCH "#[ \$err -eq 1 ] && qsub $RUNdir/$bch.cmd && sleep 120 && END_EXIT" 
+BCH "if [ -d $WRKdir/$bch.CRASH ] ; then"
+BCH "  rm -rf  $WRKdir/$bch.CRASH"
+BCH "  echo \"rm: existing $WRKdir/$bch.CRASH\""
+BCH "fi"
+
+
+WRKdix=$WRKdir        #to keep it intact and use it in case of CRASH
+WRKdir=$WRKdir/$bch
+
+BCH "mkdir $WRKdir/core"
+
+#MAR executable                         
+
+BCHc "MAR executable"
+
+MARexe=MAR_$runnam #$MARexe.exe
+
+BCH "if [ ! -f \"$WRKtmp/$MARexe.exe\" ] ; then"
+BCH " smget \"$STKmar/$domain/$runnam/code\" \"$MARexe.exe\" \"$WRKdir\""
+BCH "else"
+BCH " cp \"$WRKtmp/$MARexe.exe\" \"$WRKdir\""
+BCH "fi"
+
+BCH "if [ ! -f $WRKdir/$MARexe.exe ] ; then"
+BCH "  DAMNED \"executable non-existent [$WRKdir/$MARexe.exe]\" \"$MARexe\""
+BCH "  END_EXIT"
+BCH "fi"
+BCH "chmod +x  $WRKdir/$MARexe.exe"
+
+echo "job command file < support tests"
+
+#                                                                               
+# Input data files                                                              
+#---------------------------------------                             
+BCHt   "Input data files"
+
+#datMAR/*.dat                           
+
+  #MARinf.dat, MARs01.dat, MARs02.dat, MARgou.dat
+  #MARvou.dat, AWSvou.dat, ICEvou.dat
+
+BCHc "datMAR/*.dat"
+
+BCH "echo ; echo \" > datMAR/*.dat\" ; echo"
+BCH
+
+  #1 look if any *.dat were designed for this simulation X99
+  #  (means: MAR/SIMdir/.../input/datMAR/X99/*.dat files exist)
+  #2 if yes, use those files; if no, use the standard ..input/datMAR/*.dat files
+
+BCH "cp $MARsim/src/datMAR/*.dat $WRKdir" 
+
+if [ -d $INPUTdir/datMAR/$runnam ] ; then
+  tmp=`ls $INPUTdir/datMAR/$runnam/*.dat`
+  if [ `echo $tmp | wc -w` -eq 0 ] ; then
+    ERROR "$INPUTdir/datMAR/$runnam: empty directory. Use $INPUTdir/datMAR/*.dat files instead?"
+    tmp=`ls $INPUTdir/datMAR/*.dat`
+  fi
+else
+  tmp=`ls $INPUTdir/datMAR/*.dat`
+fi
+
+[ `echo $tmp | wc -w` -eq 0 ] && DAMNED "$INPUTdir/datMAR: empty directory, no *.dat file found"
+
+BCH "tmp=0"
+for MARfil in $tmp ; do
+BCH "cp -f  $MARfil  $WRKdir/"
+BCH "tmp=\$(( \$tmp + \$? ))"
+done
+BCH "[ \$tmp -gt 0 ] && END_EXIT"
+
+#user *.dat
+
+if [ -d $INPUTdir/../usr/ ] ; then
+ echo "job command file < $INPUTdir/../usr/*.dat input data files"
+ BCH "cp -f $INPUTdir/../usr/*.dat $WRKdir/"  
+ BCH "cp -f $INPUTdir/../usr/*.nc  $WRKdir/ 2>/dev/null"  
+ BCH "cp -f $INPUTdir/../usr/*.cdf $WRKdir/ 2>/dev/null "  
+fi
+
+if [ -d $INPUTdir/../../../usr/ ] ; then
+ echo "job command file < $INPUTdir/../../../usr/*.dat input data files"
+ BCH "cp -f $INPUTdir/../../../usr/*.dat $WRKdir/"  
+ BCH "cp -f $INPUTdir/../../../usr/*.nc  $WRKdir/ 2>/dev/null "  
+ BCH "cp -f $INPUTdir/../../../usr/*.cdf $WRKdir/ 2>/dev/null"  
+fi
+
+echo "job command file < datMAR/*.dat input data files"
+
+#MARscenario.ctr
+
+file=MARscenario.ctr
+
+[ ${#RCP_CMIP5} -gt 0 ] &&                       BCH "echo  $RCP_CMIP5 > $WRKdir/$file"
+[ ${#yr_360}    -gt 0 ] && [ $yr_360 == "y" ] && BCH "echo  YR_360    >> $WRKdir/$file"
+[ ${#yr_365}    -gt 0 ] && [ $yr_365 == "y" ] && BCH "echo  YR_365    >> $WRKdir/$file"
+
+#MARtime.ctr
+
+if [ -f $CTRLdir/MARtime.ctr ] ; then
+
+ BCH "cp $CTRLdir/MARtime.ctr      $WRKdir/MARtime.ctr"
+
+fi
+
+#MARdom.dat
+
+BCHc "MARdom.dat"
+
+MARdom=MARdom_$domain.$yrI.$tmoI.$td1I.dat
+[ $nstzip = "y" ] && Z=".gz" || Z=""
+
+
+BCH "echo ; echo \" > MARdom.dat ($MARdom)\" ; echo"
+BCH
+if [ $yr -eq $yrI -a $tmo -eq $tmoI -a $td1 -eq $td1I ] ; then  #MARdom < stock
+BCH "smget \"$STKmar/$domain/input/NESTOR/$yrI\" \"$MARdom$Z\" \"$WRKdir\""
+                                                 #smget exits if an error occurs
+[ ! -d $INPUTdir/MARdom/$runnam ] && mkdir $INPUTdir/MARdom/$runnam
+BCH "cp -f  $WRKdir/$MARdom$Z  $INPUTdir/MARdom/$runnam/"
+else                                                            #MARdom < input/
+BCH "cp -f  $INPUTdir/MARdom/$runnam/$MARdom$Z  $WRKdir/"
+fi
+if [ $nstzip = "y" ] ; then                     
+BCH "ucX \"$WRKdir\" \"$MARdom\" \"$Z\""
+BCH "[ \$? -ne 0 ] && DAMNED \"MARdom.dat not found\" \"MARdom\" && END_EXIT"
+fi
+
+  #change the simulation name in MARdom.dat
+BCH "sed \"s|$domain|$runnam|g\" $WRKdir/$MARdom > $WRKdir/MARdom.dat"
+BCH "rm -f  $WRKdir/$MARdom"
+BCH "mv MARdom.dat $MARdom ; ln -s $MARdom MARdom.dat"
+
+echo "job command file < MARdom.dat input data file"
+
+#MAR*.DAT
+
+BCHc "MAR*.DAT"
+
+if [ $again = "n" ] ; then  #get MAR*.DAT < MARini
+
+MARini=MARini_$domain.$yrI.$tmoI.${td1I}.DAT
+[ $nstzip = "y" ] && Z=".tar.gz" || Z=".tar"
+
+BCH "echo ; echo \" > MAR*.DAT ($MARini)\" ; echo"
+BCH
+BCH "smget \"$STKmar/$domain/input/NESTOR/$yrI\" \"$MARini$Z\" \"$WRKdir\""
+BCH "ucX \"$WRKdir\" \"$MARini\" \"$Z\" \"MARdyn.DAT\""
+BCH "[ \$? -ne 0 ] && DAMNED \"MARini.dat not found\" \"MARini\" && END_EXIT"
+BCH "rm -f  $WRKdir/$MARini* ; ln -s MARdyn.DAT $MARini"
+
+else                        #get MAR*.DAT < MARsim
+
+MARsim=MARsim_$runnam.$yr.$tmo.$td1${version}.DAT
+[ $marzip = "y" ] && Z=".tar.gz" || Z=".tar"
+
+BCH "echo ; echo \" > MAR*.DAT ($MARsim)\" ; echo"
+
+BCH "if [ ! -f \"$WRKtmp/$MARsim$Z\" ] ; then"
+BCH " smget \"$STKmar/$domain/input/MARsim/$runnam/$yr\" \"$MARsim$Z\" \"$WRKdir\""
+BCH "else"
+BCH " cp \"$WRKtmp/$MARsim$Z\" \"$WRKdir\""
+BCH "fi"
+BCH "[ ! -f \"$MARsim$Z\" ] && rm -f $RUNdir/$bch.cmd && DAMNED \"MARsim.DAT not found\" \"MARsim\" && END_EXIT"
+
+BCH "ucX \"$WRKdir\" \"$MARsim\" \"$Z\" \"MARdyn.DAT\""
+BCH "rm -f  $WRKdir/$MARsim* ; ln -s MARdyn.DAT $MARsim"
+
+fi
+
+echo "job command file < MAR*.DAT input data files"
+
+#MARlbc.DAT, MARglf.DAT, MARsic.DAT, MARubc.DAT
+
+for bcfil in "MARlbc" "MARglf" "MARsic" "MARubc" ; do
+
+ BCHc "$bcfil.DAT"
+
+ [ $nstzip = "y" ] && Z=".gz" || Z=""
+
+ STKbc=$STKmar/$domain/input/NESTOR/$yr
+
+ tmp1=0
+
+  for MARbc in "${bcfil}_$domain.$yr.$tmo" ; do
+
+  tmp1=$(( $tmp1 + 1 ))
+
+  [ $tmp1 -eq 1 ] && ttd1=$td1  && ttd2=$td2
+  [ $tmp1 -eq 2 ] && ttd1=$td1N && ttd2=$td2N
+
+  BCH "echo ; echo \" > $bcfil.DAT ($MARbc*)\" ; echo"
+  BCH
+  BCH "    #look for existing $bcfil.DAT on stock"
+  BCH
+  case $cluster in
+  (nic|linux|nasa|ceci)
+    BCH "rm -f  $HOME/.bcls-$RAND"
+
+if [ $sftp = "y" ] ; then
+ if [ ${#gateway} -gt 0 ] ; then 
+  BCH "$gateway \"$ssh $optionssh $ustock@$stock \\\" cd $STKbc ; ls -1 $MARbc* \\\"\" > $HOME/.bcls-$RAND"
+ else
+  BCH "i=0 ; err=1"
+  BCH "while [ \$err -ne 0 ] && [ \$i -le 30 ] ; do"
+   BCH "i=\$(( \$i + 1 )) ; sleep \$(( \$i * 2 ))"
+   if [ $cluster == "nasa" ] ; then
+   BCH "cd $STKbc ; ls -1 $MARbc* > $HOME/.bcls-$RAND ; err=\$?"
+   else
+   BCH "$ssh $optionssh $ustock@$stock \" cd $STKbc ; ls -1 $MARbc* \" > $HOME/.bcls-$RAND ; err=\$?"
+   fi
+  BCH "done"
+ fi
+else
+BCH "$gateway ftp -n <<EOF
+open $stock
+user $ustock \`tail $MARbin/util/password | awk '{print \$1}'\`
+prompt
+lcd $HOME
+cd $STKbc
+mls $MARbc*  .bcls-$RAND
+close
+EOF"
+fi
+    BCH "tmp=\`cat $HOME/.bcls-$RAND | tr '\\n' ' '\`" ;;
+  (idris)
+    BCH "tmp=\`mfls $STKbc/$MARbc* | grep $STKbc | awk '{print(\$8)}'\`"
+    BCH "tmp=\`echo \$tmp | sed \"s:$STKbc/::g\"\`" ;;
+  (foehn|froggy)
+    BCH "tmp=\`ils $STKbc | grep $MARbc\` ; tmp=\${tmp##*\ }"
+    BCH "tmp=\`echo \$tmp | sed \"s:$STKbc/::g\"\`" ;;
+
+  esac
+  BCH "tmp=\`echo \$tmp | sed \"s:$MARbc.::g\"\`"
+  BCH "tmp=\`echo \$tmp | sed \"s:.DAT$Z::g\"\`"
+  BCH "j=\`echo \$tmp | wc -w\`"
+  BCH "tmp=\`echo \$tmp | sed \"s/-/ /g\"\`"
+  BCH "i=0 ; x=0"
+  BCH "while [ \$i -lt \$(( \$j * 2 )) ] ; do"
+  BCH "  bcd1[\$x]=\`echo \$tmp | cut -d' ' -f\$(( \$i + 1 ))\`"
+  BCH "  bcd2[\$x]=\`echo \$tmp | cut -d' ' -f\$(( \$i + 2 ))\`"
+  BCH "  i=\$(( \$i + 2 ))"
+  BCH "  x=\$(( \$x + 1 ))"
+  BCH "done"
+
+  case $cluster in
+  (nic|ceci|nasa|linux|foehn|froggy)
+  BCH "rm -f  $HOME/.bcls-$RAND" ;;
+  esac
+
+  BCH
+  BCH "    #find the more suitable $bcfil.DAT"
+  BCH
+  BCH "echo \"period: ${ttd1}-$ttd2\""
+  BCH "i=0 ; tmp=\"\""
+  BCH "for x1 in \${bcd1[@]} ; do"
+  BCH "  if [ \$x1 -le $ttd1 ] ; then"
+  BCH "    if [ \${bcd2[10#\$i]} -ge $ttd2 ] ; then"
+  BCH "      tmp=\$tmp\" \$i\"  #index of candidates"
+  BCH "      echo \"  candidate \$i: \$x1-\${bcd2[10#\$i]}\""
+  BCH "    fi"
+  BCH "  fi"
+  BCH "  i=\$(( \$i + 1 ))"
+  BCH "done"
+  BCH "i=\`echo \$tmp | wc -w\`"
+  BCH "i=\$(( \$i + 0 ))       #number of candidates"
+  BCH "case \$i in"
+  BCH "(0) DAMNED \"no $bcfil.DAT found in $STKbc on stock\" \"$bcfil\"" ;
+  BCH "    END_EXIT ;;"
+  BCH "(1) for x in \$tmp ; do"
+  BCH "      ld1=\${bcd1[\$x]}"
+  BCH "      ld2=\${bcd2[\$x]}"
+  BCH "    done"
+  BCH "    echo \"chosen: \${ld1}-\$ld2\" ;;"
+  BCH "(*) tmp2=${day[10#$tmo]} ;" #maximum length of a MAR*.DAT file
+  BCH "    for x in \$tmp ; do"
+  BCH "      if [ \$(( 10#\${bcd2[\$x]} - 10#\${bcd1[\$x]} )) -le \$tmp2 ] ; then"
+  BCH "        tmp2=\$(( 10#\${bcd2[\$x]} - 10#\${bcd1[\$x]} ))"
+  BCH "        ld1=\${bcd1[\$x]}"
+  BCH "        ld2=\${bcd2[\$x]}"
+  BCH "      fi"
+  BCH "    done ;"
+  BCH "    echo \"chosen: \${ld1}-\$ld2\" ;;"
+  BCH "esac"
+  [ $tmp1 -eq 1 ] && BCH " MARbc=$MARbc.\${ld1}-\$ld2.DAT"
+  BCH "rm -f  $WRKdir/$bcfil.DAT"
+ done
+
+ BCH "if [ ! -f \"$WRKtmp/\$MARbc$Z\" ] ; then"
+ BCH " smget \"$STKbc\" \"\$MARbc$Z\" \"$WRKdir\""
+ BCH "else"
+ BCH " if [ ${tmoN#0} -ne ${tmo#0} ] ; then"
+ BCH "  mv -f \"$WRKtmp/\$MARbc$Z\" \"$WRKdir\""
+ BCH " else"
+ BCH "  cp -f \"$WRKtmp/\$MARbc$Z\" \"$WRKdir\""
+ BCH " fi"
+ BCH "fi"
+
+ BCH "[ ! -f \"\$MARbc$Z\" ] && END_EXIT"
+ 
+ if [ $nstzip = "y" ] ; then
+  BCH "ucX \"$WRKdir\" \"\$MARbc\" \"$Z\""
+  BCH "[ \$? -ne 0 ] && END_EXIT"
+ fi
+ BCH "ln -s  \$MARbc  $bcfil.DAT"
+
+done
+
+echo "job command file < MARlbc.DAT, MARglf.DAT input data files"
+
+#MARctr.dat                             
+
+BCHc "MARctr.dat"
+
+BCH "echo ; echo \" > MARctr.dat\" ; echo"
+
+BCH "echo \"${blank[11]}T  reaVAR=.F. => Input INI: Prev.Dyn.Simulat. (MAR, GCM) |\" >  $WRKdir/MARctr.dat"
+BCH "echo \"${blank[11]}T  reaLBC=.F. => Input LBC: Prev.Dyn.Simulat. (MAR, GCM) |\" >> $WRKdir/MARctr.dat"
+BCH "echo \"${blank[11]}T  safVAR=.T. => Full Output on Saving Files MARxxx.DAT  |\" >> $WRKdir/MARctr.dat"
+BCH "echo \"${blank[11]}F  hamfil=.T. => Initial Filtered Fields (Time, Hamming) |\" >> $WRKdir/MARctr.dat"
+BCH "echo \"${blank[11]}T  conmas=.T. => Mass       Conserv. Constraint on Init. |\" >> $WRKdir/MARctr.dat"
+BCH "echo \"${blank[11]}F  potvor=.T. => P.-Vortic. Conserv. Constraint on Init. |\" >> $WRKdir/MARctr.dat"
+BCH "echo \"${blank[11]}T  brocam=.T. => Brown and Campana Time Scheme (Fast W.) |\" >> $WRKdir/MARctr.dat"
+BCH "echo \"${blank[11]}T  center=.T. => Pressure       Spatial Scheme  centered |\" >> $WRKdir/MARctr.dat"
+BCH "echo \"${blank[11]}4  nordps= 4  :  Pressure       Spatial Scheme Precision |\" >> $WRKdir/MARctr.dat"
+BCH "echo \"${blank[11]}T  staggr=.T. =>                Vertical  Grid staggered |\" >> $WRKdir/MARctr.dat"
+BCH "echo \"${blank[11]}T  turhor=.T. => Horizontal Diffusion (Smagorinsky)      |\" >> $WRKdir/MARctr.dat"
+BCH "echo \"${blank[11]}F  chimod=.F. => Atmospheric Chemical Model turned OFF   |\" >> $WRKdir/MARctr.dat"
+BCH "echo \"${blank[11]}${CA}  convec=.T. => Convective  Adjustment     turned ON    |\" >> $WRKdir/MARctr.dat"
+BCH "echo \"${blank[11]}T  micphy=.T. => Cloud       Microphysics   turned ON    |\" >> $WRKdir/MARctr.dat"
+BCH "echo \"${blank[11]}T  fracld=.F. => Fractional  Cloudiness     turned OFF   |\" >> $WRKdir/MARctr.dat"
+BCH "echo \"       100.0  rhcrHY     :  Critical Relative Humidity Value        |\" >> $WRKdir/MARctr.dat"
+BCH "echo \"         0.0  tim_HY=18.0:  Cloud Microphys. start after 18h        |\" >> $WRKdir/MARctr.dat"
+BCH "echo \"  0.0001D+00  czmnGE     :  cos(Z) minimal value                    |\" >> $WRKdir/MARctr.dat"
+BCH "echo \"${blank[11]}T  physic=.T. => Atmospheric/Surface Physics included    |\" >> $WRKdir/MARctr.dat"
+BCH "echo \"${blank[11]}${SV}  vegmod=.F. => Interactive SVAT           turned OFF   |\" >> $WRKdir/MARctr.dat"
+BCH "echo \"${blank[11]}${SN}  snomod=.F. => Interactive Snow Model is  included     |\" >> $WRKdir/MARctr.dat"
+BCH "echo \"${blank[11]}${PO}  polmod=.F. => Interactive Polynya    is  included     |\" >> $WRKdir/MARctr.dat"
+BCH "echo \"        1.00  hic0       :  Initial Thickness      of Sea Ice       |\" >> $WRKdir/MARctr.dat"
+BCH "echo \"        0.10  fxlead     :  Initial Lead Fraction  in Sea Ice       |\" >> $WRKdir/MARctr.dat"
+BCH "echo \"${blank[11]}F  qsolSL=.T. => Soil Humidity is interactive            |\" >> $WRKdir/MARctr.dat"
+BCH "echo \"${blank[10-${#dt}]}$dt.0  dt         =>    Time Step of Slow Dynamics       (s) |\" >> $WRKdir/MARctr.dat"
+BCH "echo \"        $nboucl   nboucl     => Nb Time Steps between  each  Print      |\" >> $WRKdir/MARctr.dat"
+BCH "echo \"${blank[12-1-${#np}]}-$np  np         => Nb Prints${blank[31]}|\" >> $WRKdir/MARctr.dat"
+BCH "echo \"${blank[11]}$ntfast  ntfast     :  Nb Fast Time Steps over dt  (Lamb)      |\" >> $WRKdir/MARctr.dat"
+BCH "echo \"${blank[10-${#dtDiff}]}$dtDiff.0  dtDiff     :     Time Step of Diffusion               |\" >> $WRKdir/MARctr.dat"
+BCH "echo \"${blank[10-${#dtPhys}]}$dtPhys.0  dtPhys     :     Time Step of Surface Physics     (s) |\" >> $WRKdir/MARctr.dat"
+BCH "echo \"${blank[10-${#dtRadi}]}$dtRadi.0  dtRadi     :     Time Step of Radiat. Transfert   (s) |\" >> $WRKdir/MARctr.dat"
+BCH "echo \"  5.0000D-03  rxbase     :  Nudging Coefficient (Anthes et al. 1989)|\" >> $WRKdir/MARctr.dat"
+BCH "echo \"  1.0000D+02  rxfact     :  Lateral Sponge Coefficient         (A89)|\" >> $WRKdir/MARctr.dat"
+BCH "echo \"+-------------------------------------------------------------------+\" >> $WRKdir/MARctr.dat"
+BCH "echo \"|${blank[39]}                            |\" >> $WRKdir/MARctr.dat"
+BCH "echo \"| Simulation     $runnam${blank[43]}${version}     |\" >> $WRKdir/MARctr.dat"
+BCH "echo \"| Periode        $td1/$tmo/$yr -> $td2/$tmo/$yr${blank[27]}|\" >> $WRKdir/MARctr.dat"
+BCH "echo \"| Time Step      $dt s${blank[39]}       |\" >> $WRKdir/MARctr.dat"
+BCH "echo \"| Conv. adjust.  $CA${blank[41]}         |\" >> $WRKdir/MARctr.dat"
+if   [ $SV == "T" ] ; then
+BCH "echo \"| Surface model  SISVAT   ${blank[39]}   |\" >> $WRKdir/MARctr.dat"
+elif [ $SV == "F" ] ; then
+BCH "echo \"| Surface model  Deardorff${blank[39]}   |\" >> $WRKdir/MARctr.dat"
+fi
+BCH "echo \"| Snow    model  $SN${blank[41]}         |\" >> $WRKdir/MARctr.dat"
+BCH "echo \"| Polynya model  $PO${blank[41]}         |\" >> $WRKdir/MARctr.dat"
+
+BCH "echo \"|${blank[39]}                            |\" >> $WRKdir/MARctr.dat"
+BCH "echo \"+-------------------------------------------------------------------+\" >> $WRKdir/MARctr.dat"
+BCH
+BCH "[ ! -d $INPUTdir/MARctr/$runnam ] && mkdir $INPUTdir/MARctr/$runnam"
+BCH "cp $WRKdir/MARctr.dat $INPUTdir/MARctr/$runnam/MARctr.dat.$tyr$tmo$td1-$tyr$tmo$td2"
+
+echo "job command file < MARctr.dat input data file"
+
+#                                                                               
+# Stock initialisation                                                          
+#---------------------------------------                             
+BCHt   "Stock initialisation"
+
+  #creating needed directory on stock     
+
+case $cluster in
+(nic|ceci|linux)
+if [ $sftp = "y" ] ; then
+BCH "$gateway $ssh $optionssh $ustock@$stock mkdir -p $STKmar/$domain/crash &"
+BCH "$gateway $ssh $optionssh $ustock@$stock mkdir -p $STKmar/$domain/$runnam/log &"
+BCH "$gateway $ssh $optionssh $ustock@$stock mkdir -p $STKmar/$domain/$runnam/$yr &"
+BCH "$gateway $ssh $optionssh $ustock@$stock mkdir -p $STKmar/$domain/input/MARsim/$runnam/$yrN &"
+else
+BCH "echo \"Info: \'550 Create directory operation failed\' <= directory existing\""
+BCH "aftp mkdir $STKmar"
+BCH "aftp mkdir $STKmar/$domain"
+BCH "aftp mkdir $STKmar/$domain/crash"
+BCH "aftp mkdir $STKmar/$domain/$runnam"
+BCH "aftp mkdir $STKmar/$domain/$runnam/log"
+BCH "aftp mkdir $STKmar/$domain/$runnam/$yr"
+BCH "aftp mkdir $STKmar/$domain/input"
+BCH "aftp mkdir $STKmar/$domain/input/MARsim"
+BCH "aftp mkdir $STKmar/$domain/input/MARsim/$runnam"
+BCH "aftp mkdir $STKmar/$domain/input/MARsim/$runnam/$yrN"
+fi
+;;
+(foehn|froggy)
+BCH "imkdir -p $STKmar/$domain/crash 2>/dev/null"
+BCH "imkdir -p $STKmar/$domain/$runnam/log 2>/dev/null"
+BCH "imkdir -p $STKmar/$domain/$runnam/$yr 2>/dev/null"
+BCH "imkdir -p $STKmar/$domain/input/MARsim/$runnam/$yrN 2>/dev/null"
+(nasa)
+BCH "mkdir -p $STKmar/$domain/crash &"
+BCH "mkdir -p $STKmar/$domain/$runnam/log &"
+BCH "mkdir -p $STKmar/$domain/$runnam/$yr &"
+BCH "mkdir -p $STKmar/$domain/input/MARsim/$runnam/$yrN &"
+esac
+
+STKcrash=$STKmar/$domain/crash
+STKlog=$STKmar/$domain/$runnam/log
+STKout=$STKmar/$domain/$runnam/$yr
+STKsim=$STKmar/$domain/input/MARsim/$runnam/$yrN
+
+echo "job command file < stock initialisation"
+
+#
+# Coupling with GRISLI
+# --------------------
+
+if [ ${#GRISLI} -gt 0 ] && [ ${GRISLI} == "y" ] ; then
+
+BCH "while [ ! -f GRISLI4MAR_${runnam}_${yr}0101.cdf ] ; do"
+BCH " smget \"~/MAR/ice/out/${runnam}\" \"GRISLI4MAR_${runnam}_${yr}0101.cdf\" \"$WRKdir\""
+BCH " cp GRISLI4MAR_${runnam}_${yr}0101.cdf ~/MAR/usr &>/dev/null"
+BCH " echo \"GRISLI4MAR_${runnam}_${yr}0101.cdf\" >> $WRKdir/MARscenario.ctr"
+BCH "done"
+fi
+
+#                                                                               
+# MAR launch                                                                    
+#---------------------------------------                             
+BCHt   "MAR launch"
+
+BCH "cd $WRKdir"
+
+BCH "ulimit -s unlimited"
+
+case $cluster in
+(idris)                      BCH " timex           ./$MARexe.exe > $WRKdir/$MARexe.log" ;;
+(nic|ceci|foehn|froggy|nasa) BCH " time            ./$MARexe.exe > $WRKdir/$MARexe.log" ;;
+(linux)                      BCH " time  nice -n19 ./$MARexe.exe > $WRKdir/$MARexe.log" ;;
+esac
+
+BCH "ncdump -v rainHY MAR.*.nc > tmp3.dat"
+BCH "tmp1=\`grep \"nan, nan, nan,\" *.log | tail -1\`"
+
+[ -f $CTRLdir/MARtime.ctr ] &&  BCH "rm -f  $CTRLdir/MARtime.ctr"
+
+BCH "if [ -f $WRKdir/MAR.OK ] && [ \${#tmp1} -eq 0 ] ; then"
+
+BCH " echo"
+BCH " echo \"MAR run: OK (\`date\`)\""
+BCH " marcrash=0"
+
+BCH "else"
+
+BCH " cp $WRKdir/MAR.log $WRKdir/MAR.log2"
+BCH " if [ \$? -ne 0 ] ; then"
+BCH "  echo \"Not space left on device on \`hostname\` at \`date\`\""
+BCH "  #qsub $RUNdir/$bch.cmd" 
+BCH "  sleep 120"
+BCH "  rm -rf $WRKdir"
+BCH "  END_EXIT"   
+BCH " else"
+
+BCH "  DAMNED \"MAR error (MAR.OK non-existent) (\`date\`)\" \"CRASH\""
+
+BCH "  date                                      >  mail.txt"
+BCH "  hostname -f                               >> mail.txt"
+BCH "  tail -2  $WRKdir/MAR.log | head -1        >> mail.txt"
+BCH "  tail -15 $WRKdir/$MARexe.log              >> mail.txt"
+BCH "  end1=\`tail -2 MAR.log  | head -1 | awk '{print \$2}'\`"
+BCH "  end2=\`tail -2 MAR.log  | head -1 | awk '{print \$3}'\`"
+BCH "  end3=\`tail -2 MAR.log  | head -1 | awk '{print \$4}'\`"
+
+[ $dt -eq 300 ] && dtnew=240
+[ $dt -eq 240 ] && dtnew=225
+[ $dt -eq 225 ] && dtnew=200
+[ $dt -eq 200 ] && dtnew=180
+[ $dt -eq 180 ] && dtnew=150
+[ $dt -eq 150 ] && dtnew=120
+[ $dt -eq 120 ] && dtnew=100
+[ $dt -eq 100 ] && dtnew=90
+[ $dt -eq 90 ]  && dtnew=80
+[ $dt -eq 80 ]  && dtnew=75
+[ $dt -eq 75 ]  && dtnew=60
+[ $dt -eq 60 ]  && dtnew=50
+[ $dt -eq 50 ]  && dtnew=40
+[ $dt -eq 40 ]  && dtnew=30
+[ $dt -eq 30 ]  && dtnew=20
+[ $dt -eq 20 ]  && dtnew=10
+[ $dt -eq 10 ]  && echo "ERROR: dt=$dt too low!!" && exit
+
+BCH "  mail -s \"$job CRASH on \$host at \$end1 \$end2 \$end3: $dt => $dtnew s\" $Email < mail.txt"
+BCH "  echo \"$yr ${tmo#0} ${td1#0} $dt $dtnew  \$end1 \$end2 \$end3\" >> $CTRLdir/MARdt.ctr"
+
+BCH "  MAR -again $CTRLdir/$MARctr  $runnam  $yr  $tmo  $td1  $slice"
+BCH "  touch $HOME/CRASH1_${job}_on_\$host "
+
+BCH "  rm -f mail.txt $WRKdir/MAR.log2 &>/dev/null" 
+
+BCH "  tail $WRKdir/MAR.log $WRKdir/$MARexe.log"
+
+BCH "  crashtime=\"\`tail -1 $WRKdir/$MARexe.log\`\""
+
+BCH "  mv -f  $WRKdir  $WRKdix/$bch.\$host.CRASH"
+BCH "  tarX  \"$WRKdix\"  \"$bch.\$host.CRASH\""
+BCH "  rm -rf  $WRKdix/$bch.\$host.CRASH"
+
+if [ $marzip = "y" ] ; then
+ Z=".gz"
+BCH "  gzipX  \"$WRKdix\"  \"$bch.\$host.CRASH.tar\""
+BCH "  [ \$? -ne 0 ] && END_EXIT"
+else
+ Z=""
+fi
+
+BCH "  smput \"$WRKdix\"  \"$bch.\$host.CRASH.tar$Z\"  \"$STKcrash\""
+BCH "  [ \$? -eq 0 ] && rm -f  $WRKdix/$bch.\$host.CRASH.tar$Z"
+[ $cluster = "linux" ]  && BCH "  cd $WRKmsg ; qsub  $RUNdir/$bch.cmd"
+[ $cluster = "foehn" ]  && BCH "  cd $WRKmsg ; $QSUB $RUNdir/$bch.cmd"
+[ $cluster = "froggy" ] && BCH "  cd $WRKmsg ; $QSUB $RUNdir/$bch.cmd"
+[ $cluster = "nic"   ]  && BCH "  cd $WRKmsg ; $QSUB $RUNdir/$bch.cmd\""
+[ $cluster = "ceci"  ]  && BCH "  cd $WRKmsg ; $gateway /usr/bin/sbatch $RUNdir/$bch.cmd"
+[ $cluster = "nasa"  ]  && BCH "  cd $WRKmsg ; $gateway          sbatch $RUNdir/$bch.cmd"
+BCH "  marcrash=1 ; exit"
+BCH " fi"
+BCH "fi"
+
+#marcrash=1: go straight to 'Informations to summary file' 
+#marcrash=0: just go on as usual 
+BCHc "test on marcrash (not) to skip part of the script"
+
+BCH "#marcrash=1: go straight to Informations to summary file"
+BCH "#marcrash=0: just go on as usual"
+BCH
+BCH "if [ \$marcrash -eq 0 ] ; then  ## marcrash if ##" ## marcrash if ## 
+BCH
+
+echo "job command file < MAR launch"
+
+#                                                                               
+# Backup: listing files                                                
+#---------------------------------------                             
+BCHt   "Backup: listing files"
+
+BCH "ls -l $WRKdir"
+
+BCHc "remove not needed files"
+
+BCH "echo ; echo \"not needed files will be removed\" ; echo"
+BCH "rm -f $WRKdir/MARphy.out $WRKdir/MARbil.out"
+BCH "rm -f $WRKdir/MARlbc* $WRKdir/MARglf* $WRKdir/MARsic* $WRKdir/MARubc*"
+BCH "rm -f $WRKdir/MARsim* $WRKdir/MARini* $WRKdir/*.dat"
+
+[ $marzip = "y" ] && BCH "rm -f  $WRKdir/*.gz"
+
+BCH
+BCH "ls -l $WRKdir"
+
+#                                                                               
+# Backup: .log files                                                            
+#---------------------------------------                             
+BCHt   "Backup: .log files (MAR.log, $MARexe.log)"
+
+MARlog=MAR.log.$runnam.$tyr$tmo$td1$slice
+MARlox=$MARexe.log.$tyr$tmo$td1$slice
+BCH "mv -f  $WRKdir/MAR.log     $WRKdir/$MARlog"
+BCH "mv -f  $WRKdir/$MARexe.log $WRKdir/$MARlox"
+
+BCH "smput \"$WRKdir\"  \"$MARlog\"  \"$STKlog\""
+BCH "[ \$? -eq 0 ] && rm -f  $WRKdir/$MARlog"
+BCH "smput \"$WRKdir\"  \"$MARlox\"  \"$STKlog\""
+BCH "[ \$? -eq 0 ] && rm -f  $WRKdir/$MARlox" 
+
+echo "job command file < backup: .log files"
+
+#                                                                               
+# Backup: MARsim.DAT                                                            
+#---------------------------------------                             
+BCHt   "Backup: MARsim.DAT"
+
+MARsimN=MARsim_$runnam.$yrN.$tmoN.${td1N}${version}.DAT
+
+BCH "tarX  \"$WRKdir\"  \"MAR*.DAT\"  \"$MARsimN\""
+BCH "if [ \$? -eq 0 ] ; then"
+BCH "  rm -f  $WRKdir/MAR*.DAT"
+BCH "  Z=\".tar\""
+if [ $marzip = "y" ] ; then
+BCH "  gzipX  \"$WRKdir\"  \"$MARsimN\$Z\""
+BCH "  [ \$? -eq 0 ] && Z=\"\$Z.gz\""
+fi
+BCH "  rm -f \"$WRKtmp/MARsim_${runnam}.\"*"
+BCH "  cp -f \"$WRKdir/$MARsimN\$Z\" \"$WRKtmp\""
+BCH "  smput  \"$WRKdir\"  \"$MARsimN\$Z\"  \"$STKsim\""
+BCH "  if [ \$? -eq 0 ] ; then"
+BCH "    rm -f  $WRKdir/$MARsimN\$Z"
+BCH "    rm -f  $WRKdir/MAR*.DAT"
+BCH "  fi"
+BCH "  echo \"$MARsimN\$Z on stock\""
+BCH "fi"
+
+echo "job command file < backup: MARsim.DAT"
+
+#                                                                               
+# Launch of the next period                                                  
+#---------------------------------------
+BCHt   "Launch of the next period"
+
+bchN=MAR_$WLDreg$runnam.$tyrN.$tmoN.${td1N}-$td2N
+
+if [ $yrN$tmoN$td2N -gt $yrF$tmoF$td2F ] ; then
+  BCH "echo \"entire simulation over\""
+  BCH "touch \$msg.bye"
+  BCH "echo \"echo \\\"Entire simulation over on $yrF $tmoF $td2F for $WLDreg$runnam\\\"\" > $RUNdir/$bchN.cmd"
+  BCH "echo \"exit\" >>        $RUNdir/$bchN.cmd"
+  BCH "cat $RUNdir/$bch.cmd >> $RUNdir/$bchN.cmd"
+  BCH "chmod +x                $RUNdir/$bchN.cmd"
+  BCH "[ -f $MARbin/run/$runnam ] && mv $MARbin/run/$runnam $MARbin/run/${runnam}_end"
+else
+  BCH "echo \"next simulation is: $domain $runnam $yrN$tmoN$td1N$sliceN\""
+  BCH "MAR -again $CTRLdir/$MARctr  $runnam  $yrN  $tmoN  $td1N  $sliceN  > /dev/null"
+  BCH "if [ \$? -ne 99 -a -f $RUNdir/$bchN.cmd ] ; then"
+  case $cluster in
+  (idris) BCH "  qsub $RUNdir/$bchN.cmd" ;;
+  (nic )  BCH " $QSUB $RUNdir/$bchN.cmd\"" ;;
+  (ceci)  BCH " $gateway /usr/bin/sbatch $RUNdir/$bchN.cmd" ;;
+  (nasa)  BCH " $gateway          sbatch $RUNdir/$bchN.cmd" ;;
+  (foehn|froggy) BCH " $QSUB $RUNdir/$bchN.cmd" ;;
+  (linux) if [ $job_pbs = "y" ] ; then
+            BCH " cd $WRKmsg ; qsub $RUNdir/$bchN.cmd"
+          else
+            BCH "  ( ./$RUNdir/$bchN.cmd &> $RUNdir/$bchN.cmd.log ) &"
+          fi ;;
+  esac
+  BCH "  echo \"$bchN.cmd launched in batch on $cluster\""
+  BCH "else"
+  BCH "  DAMNED \"no job command file for next period simulation [$RUNdir/$bchN.cmd]\" \"fil\""
+  BCH "fi"
+fi
+
+echo "job command file < launch of the next period"
+
+#                                                                               
+# Backup: MAR output files                                                      
+#---------------------------------------
+BCHt   "Backup: MAR output files"
+
+BCHc "Backup of existing *.nc files"
+BCH "echo ; echo \" Backup of existing *.nc files\" ; echo"
+
+BCH "cd $WRKdir"
+
+type_list="MAR ICE ONE"
+
+[ ${#ICE_only} -gt 0 ] && type_list="ICE" && BCH "rm -f $WRKdir/ONE.*.nc" && BCH "rm -f $WRKdir/MAR.*.nc"
+
+for type in $type_list ; do
+MARout=${type}.$runnam.$yr.$tmo.${td1}-$td2${version}.nc
+#[ $type = "ONE" ] && BCH "rm -f $WRKdir/${type}*nc"
+BCH
+BCH "  #${type} NetCDF output file"
+BCH
+BCH "if [ ! -f $WRKdir/${type}*nc ] ; then"
+BCH "  echo \"${type} NetCDF output file non-existent\""
+BCH "else"
+BCH "  echo ; echo \"  > ${type} ($MARout)\" ; echo"
+BCH "  mv -f  $WRKdir/${type}*nc  $WRKdir/$MARout"
+BCH "  Z=\"\""
+if [ $marzip = "y" ] ; then
+ BCH "  gzipX  \"$WRKdir\"  \"$MARout\""
+ BCH "  [ \$? -eq 0 ] && Z=\".gz\""
+fi
+BCH "smput  \"$WRKdir\"  \"$MARout\$Z\"  \"$STKout\"" 
+BCH "[ \$? -eq 0 ] && rm -f  $WRKdir/$MARout\$Z"
+BCH "fi"
+done
+
+MARout=SBCnew.AWS.$runnam.$yr$tmo${td1}-$td2
+BCH
+BCH "  #SBCnew.AWS output file (WAF only)"
+BCH
+BCH "if [ -f $WRKdir/SBCnew.AWS ] ; then"
+BCH "  echo ; echo \"  > SBCnew.AWS ($MARout)\" ; echo"
+BCH "  mv -f  $WRKdir/SBCnew.AWS  $WRKdir/$MARout"
+BCH "  smput  \"$WRKdir\"  \"$MARout\"  \"$STKout\""
+BCH "  [ \$? -eq 0 ] && rm -f  $WRKdir/$MARout"
+BCH "fi"
+
+BCH
+BCH "  #stations NetCDF output file"
+BCH
+MARout=$runnam.$yr.$tmo.${td1}-$td2.nc
+BCH "if [ ! -f $WRKdir/*nc ] ; then"
+BCH "  echo ; echo \"  > stations\" ; echo"
+BCH "  echo \"no other NetCDF output file\""
+BCH "else"
+BCH "  for fil in \`ls *.nc\` ; do"
+BCH "    [ \"\${fil:0:3}\" != \"ANT\" ] && mv  \$fil  \${fil%%.*}.$MARout"
+#CA BCH "    mv  \$fil  \${fil%%.*}.$MARout"
+BCH "  done"
+if [ $marzip = "y" ] ; then
+BCH "  for fil in \`ls *.nc\` ; do"
+BCH "    [ \"\${fil:0:3}\" != \"ANT\" ] && gzipX  \"$WRKdir\"  \"\$fil\""
+#CA BCH "    gzipX  \"$WRKdir\"  \"\$fil\""
+BCH "    [ \$? -eq 0 ] && Z=\".gz\""
+BCH "  done"
+else
+BCH "  Z=\"\""
+fi
+BCH "  for fil in \`ls *.nc\$Z\` ; do"
+BCH "    smput  \"$WRKdir\"  \"\$fil\"  \"$STKout\""
+BCH "    [ \$? -eq 0 ] && rm -f  $WRKdir/\$fil\$Z"
+BCH "  done"
+BCH "  for fil in \`ls SBCnew.AWS*\` ; do"
+BCH "    [ \"\${fil:0:3}\" != \"ANT\" ] && smput  \"$WRKdir\"  \"\$fil\"  \"$STKout\""
+#CA BCH "    smput  \"$WRKdir\"  \"\$fil\"  \"$STKout\""
+BCH "    [ \$? -eq 0 ] && rm -f  $WRKdir/\$fil\$Z"
+BCH "  done"
+BCH "fi"
+
+echo "job command file < backup: MAR output files"
+
+BCH
+BCH "fi  ## marcrash if ##" ## marcrash if ##
+BCH
+BCH
+
+#                                                                               
+# Informations to summary file                                                  
+#---------------------------------------                             
+BCHt   "Informations to summary file"
+
+#add informations about the MAR simulation to the summary file,
+#if simulation successfully over or if simulation crashed.     
+
+BCH "[ $yrN$tmoN$td2N -gt $yrF$tmoF$td2F -a \${#crashtime} -eq 0 ] && descrfile="y" #RUN     OVER & NO CRASH"
+BCH "[ $yrN$tmoN$td2N -gt $yrF$tmoF$td2F -a \${#crashtime} -ne 0 ] && descrfile="y" #RUN     OVER $    CRASH"
+BCH "[ $yrN$tmoN$td2N -le $yrF$tmoF$td2F -a \${#crashtime} -eq 0 ] && descrfile="n" #RUN NOT OVER & NO CRASH"
+BCH "[ $yrN$tmoN$td2N -le $yrF$tmoF$td2F -a \${#crashtime} -ne 0 ] && descrfile="y" #RUN NOT OVER &    CRASH"
+
+#specific comments on the simulation < MAR.ctr
+comments=`grep "^##" $CTRLdir/$MARctr | sed "s/##//g"`
+
+#descr.$domain: add those informations to the summary file                      
+
+descr=${DOMdir%$runnam}descr.$domain
+descrrun=$CTRLdir/descr.$runnam
+
+BCH "if [ \$descrfile = \"y\" ] ; then"
+BCH "  [ ! -f $descr ] && touch $descr"
+
+#general                                
+BCH "  [ \${#crashtime} -ne 0 ] && echo \"##CRASH##CRASH##CRASH##CRASH##CRASH##CRASH##CRASH## \`date\`\" >> $descr"
+BCH "  [ \${#crashtime} -eq 0 ] && echo \"################################################### \`date\`\" >> $descr"
+BCH "  echo \"name    :  $runnam\" >> $descr"
+BCH "  echo \"period  :  $td1I.$tmoI.$yrI to $td2F.$tmoF.$yrF\" >> $descr"
+BCH "  tmp=\`sed -n '1,3p' $descrrun\`"
+BCH "  echo \"\$tmp\" >> $descr"
+
+#time steps                             
+BCH "  echo \"${hyphen[80]}\" >> $descr"
+BCH "  echo \"dt    :  $dt s${blank[10-2-${#dt}]}ntfast:  $ntfast\" >>$descr"
+BCH "  echo \"np    :  -$np ${blank[10-2-${#np}]}nboucl:  $nboucl ${blank[10-1-${#nboucl}]}output:  each $each min\" >> $descr"
+BCH "  echo \"dtDiff:  $dtDiff s${blank[10-2-${#dtDiff}]}dtPhys:  $dtPhys s${blank[10-2-${#dtPhys}]}dtRadi:  $dtRadi s\" >> $descr"
+
+#MAR options, directories and programs version
+BCH "  tmp=\`sed -n '4,21p' $descrrun\`"
+BCH "  echo \"\$tmp\" >> $descr"
+BCH "  echo \"cluster       :  $cluster (\`uname -n\`)\" >> $descr"
+BCH "  tmp=\`sed -n '22,26p' $descrrun\`"
+BCH "  echo \"\$tmp\" >> $descr"
+
+#specific comments                               
+BCH "  echo \"${hyphen[80]}\" >> $descr"
+BCH "  echo \"Informations:\" >> $descr"
+BCH "  echo \"$comments\" >> $descr"
+
+#possible crash                         
+BCH "  if [ \${#crashtime} -ne 0 ] ; then"
+BCH "    echo \"${hyphen[75]}CRASH\" >> $descr"
+BCH "    echo \"CRASH on:\" >> $descr"
+BCH "    echo \"\$crashtime\" >> $descr"
+BCH "  fi"
+
+BCH "  echo \"################################################################################\" >> $descr"
+
+BCH "  echo \"informations to summary file $descr\""
+
+BCH "else"
+
+BCH "  echo \"simulation not yet over\""
+
+BCH "fi"
+
+echo "job command file < informations to summary file"
+
+#                                                                               
+# Final job check                                                               
+#---------------------------------------                             
+BCHt   "Final job check"
+
+BCH "  echo \"$job job executed successfully on $cluster\""
+BCH "  mv  \$msg  \$msg.ok"
+
+  #remove the $WRKdir directory if the job is a success
+
+if [ $cluster != "idris" ] ; then
+BCH "  rm -rf $WRKdir"
+fi
+
+echo "job command file < final job check"
+
+BCH "echo \`date\`"
+
+BCH "END_EXIT"
+
+#                                                                               
+# Job command file executable                                                   
+#---------------------------------------                             
+
+TITLE2 "job command file executable"
+
+chmod +x  $RUNdir/$bch.cmd
+
+echo "chmod: job command file executable"
+
+exit 0

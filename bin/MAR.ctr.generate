@@ -1,0 +1,18 @@
+#!/bin/bash
+
+dom=x
+month="05"
+
+cd $HOME/MAR/bin
+
+for YY in `seq 0 9` ; do
+
+                   YY2="9$YY"
+ [ $YY -le 9 ]  && YY2="0$YY"
+
+ YYYY=$(( 1990 + $YY ))   
+
+ sed "s/YYYY/${YYYY}/g" MAR.ctr.generate.dat > MAR.ctr
+ MAR ${dom}${YY2} ${YYYY} $month
+done
+

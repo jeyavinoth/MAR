@@ -1,0 +1,144 @@
+#!/bin/bash
+#
+# v3.1 - 21.06.2006 (26.08.2003)
+#                                                                               
+# NAME                                                                          
+#                                                                               
+#   INI.ctr - global parameters for the all scripts
+#                                                                               
+# SYNOPSIS                                                                      
+#                                                                               
+#   <nihil>                                                                     
+#                                                                               
+# OPERANDS                                                                      
+#                                                                               
+#   <nihil>                                                                     
+#                                                                               
+# DESCRIPTION                                                                   
+#                                                                               
+#   The INI.ctr ("INI control") file contains the user's parameter for the      
+#   creation of a new MAR domain of simulation.                                 
+#                                                                               
+#
+# User information
+#
+
+Email="xavier.fettweis@ulg.ac.be"
+
+#===============================================================================
+#                          TECHNICAL INFORMATIONS                               
+#                                                                               
+# Domain information                                                            
+#                                                                               
+
+WLDreg=GR                       # world region (e.g. GR, AN, EU, BE, WA...)     [a2]
+                                                                          
+#===============================================================================
+
+# CLUSTER
+
+# ------------------------------------------
+  HOMdir=/climato_tmp1/$USER ; cluster=linux
+# ------------------------------------------
+
+# -----------------------------------------
+# HOMdir=/u/$USER            ; cluster=nic
+# WRKdir=/tmpscratch/$USER   ; FTPDIR=/scratch/$USER
+# QSUB="/usr/bin/ssh nick3 \"source /etc/profile.d/modules.sh ; module load sge/6.1 ; qsub"
+# -----------------------------------------
+
+# ------------------------------------------
+# HOMdir=$HOME               ; cluster=ceci ; gateway="ssh -C antares_nfs" ; 
+# FTPDIR=$HOME/tmp/          ;  WRKdir=/tmp/$USER
+# ------------------------------------------
+
+# ------------------------------------------
+# HOMdir=/home/$USER         ; cluster=foehn
+# QSUB="ssh service1 oarsub -S"
+# HOMdir=/home/$USER         ; cluster=froggy
+# QSUB="ssh froggy1 oarsub -S"
+# ------------------------------------------
+
+# ------------------------------------------
+# HOMdir=/discover/nobackup/eunoble/model/MAR_3.5 ; cluster=nasa
+# WRKdir=/discover/nobackup/eunoble/model/MAR_3.5/MAR/run
+# FTPDIR=/discover/nobackup/eunoble/model/MAR_3.5/MAR/tmp
+# ------------------------------------------
+
+#===============================================================================
+
+
+job_pbs=y                       # PBS submission on 'linux'-type cluster   [y/n]
+
+      ssh="/usr/bin/ssh"
+optionssh="-o ConnectTimeout=10 -o ConnectionAttempts=10 -C"
+
+#===============================================================================
+
+# SIMDIR
+
+MARsim=$HOMdir/MAR
+
+SIMdir=$MARsim/sim                           # SIMdir    directory path (MAR simulations) 
+MARsrc=$MARsim/src		             # MARdir    directory path (MAR model)
+MARbin=$MARsim/bin		             # scripts   directory path (INI NST CODE MAR)
+WRKtmp=$MARsim/tmp		             # temporary directory path
+WRKmsg=$MARsim/msg		             # work      directory path (batched messages)
+
+#===============================================================================
+
+# STOCK
+
+
+stock=139.165.29.17                          # address of the mass storage system*
+ustock=fettweis
+
+sftp=y                                       # y or n
+
+STKmar=/climato_tmp1/fettweis/MAR/out        # MAR       directory path on stock
+STKsrf=/climato_tmp1/fettweis/MAR/in         # DATA      directory path on stock (FAO,SST...)
+STKlsc=$STKsrf/ECMWF                         # LSC files directory path on stock
+
+# foehn
+#stock= ; ustock= ; sftp=n
+#STKmar=/cigri/home/dverfail
+
+
+#===============================================================================
+
+# SCRATCHDIR
+
+# WRKdir is used to run MAR
+# FTPDIR is used for the FTP connections 
+
+if [ -z $WRKdir ] ; then 
+
+                                 WRKdir=$MARsim/run
+[ -d /scratch/$USER         ] && WRKdir=/scratch/$USER        # work directory path (job execution)
+[ -d /scratch/$USER/MARrun  ] && WRKdir=/scratch/$USER/MARrun # work directory path (job execution)
+[ -d /tmpscratch/$USER      ] && WRKdir=/tmpscratch/$USER
+
+fi
+                                                         
+[ -z $FTPDIR                ] && FTPDIR=$HOME
+
+#===============================================================================
+
+# IDRIS special
+#UQHOME=/sx5/u/rech/lll/rlll190  # home      directory path on uqbar (only idris)
+
+#===============================================================================
+
+PATH="$PATH:$MARbin:$HOME/bin:$HOME/util/bin"
+
+#===============================================================================
+
+export OMP_NUM_THREADS=1 # by default, see MAR.ctr otherwise
+                                                                               
+#===============================================================================
+
+#ifort 12.0.2
+
+#source $HOME/MAR/intel-12.0.2/composerxe-2011/bin/compilervars.sh intel64
+
+

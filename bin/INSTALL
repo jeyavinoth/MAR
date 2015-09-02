@@ -1,0 +1,77 @@
+#!/bin/bash
+
+echo "1. Make the archive tgz"
+echo "2. Install the MAR model from the archive tgz"
+
+echo "1 or 2 ?"
+
+MAR="$PWD/../../MAR"
+
+until [ ${#option} -gt 0 ] && [ ${option} -ge 1 ] && [ ${option} -le 2 ] ; do
+
+ read option
+
+done
+
+if [ $option -eq 1 ] ; then
+
+ cd $PWD/../..
+
+ [ -d MAR ] && MAR=$MAR
+
+ if [ ! -d $MAR ] ; then 
+  echo "$MAR not found" ; exit
+ fi
+
+ archive="$HOME/MARsrc_`date '+%Y-%m-%d'`".tgz
+
+ files="$MAR/src/forMAR/forMAR    $MAR/src/NESTOR/NESTOR"
+ files="$files $MAR/src/datMAR    $MAR/src/libMAR $MAR/src/MAPOST/MAPOST"
+ files="$files $MAR/src/preMAR    $MAR/src/POMME  $MAR/usr $MAR/src/fsplit"
+ files="$files $MAR/bin/FUNCTION* $MAR/bin/CODE*  $MAR/bin/COMPILE"
+ files="$files $MAR/bin/IN*       $MAR/bin/MAR    $MAR/bin/MAR.ctr*"
+ files="$files $MAR/bin/NST*      $MAR/bin/PMP*   $MAR/bin/*check"
+
+ tar czfh $archive $files
+
+else
+
+ #MAR
+
+ type qstat &>/dev/null ; err=$? ; [ ${err} -eq 1 ] && echo "WARNING: qstat not found (Install torque or openPBS)"
+ type sftp  &>/dev/null ; err=$? ; [ ${err} -eq 1 ] && echo "WARNING: sftp  not found"
+ type scp   &>/dev/null ; err=$? ; [ ${err} -eq 1 ] && echo "WARNING: scp   not found"
+
+ echo "Did you configure $MAR/bin/INI.ctr ? (y/n)"
+ 
+ until [ ${#yes} -gt 0 ] && [ $yes == "y" ] ; do
+  read yes
+  [ ${#yes} -gt 0 ] && [ ${yes} == "n" ] && exit
+ done
+
+ cd $MAR
+
+ source $MAR/bin/INI.ctr
+
+ mkdir msg tmp sim $WRKdir &>/dev/null
+ 
+ [ -d usr ] && echo "$MAR/usr for Greenland installed" && echo ""
+
+ # PATH
+
+ echo "export PATH=\"\$PATH:\$HOME/MAR/bin\" # To run the MAR model" >> $HOME/.bashrc
+
+ # SSH
+
+ mkdir $HOME/.ssh &>/dev/null
+ cd    $HOME/.ssh
+ ssh-keygen -b 1024 -t dsa
+ 
+ ssh             $ustock@$stock mkdir .ssh
+ scp id_dsa.pub  $ustock@$stock:~/.ssh
+ ssh             $ustock@$stock "cat ~/.ssh/id_dsa.pub >> ~/.ssh/authorized_keys2"
+ ssh             $ustock@$stock "ln -s ~/.ssh/authorized_keys2 ~/.ssh/authorized_keys"
+
+ ssh $ustock@$stock mkdir $STKmar $STKsrf $STKlsc
+
+fi

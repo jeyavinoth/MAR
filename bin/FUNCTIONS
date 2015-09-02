@@ -1,0 +1,431 @@
+#!/bin/bash
+
+###################################################################################
+
+#arrays of blanks/hyphens/plus          
+
+i=1 ; tmp1="" ; tmp2="" ; tmp3=""
+while [ $i -le 80 ] ; do
+  tmp1="$tmp1"' '
+  blank[$i]="$tmp1"
+  tmp2="$tmp2"'-'
+  hyphen[$i]="$tmp2"
+  tmp3="$tmp3"'+'
+  plus[$i]="$tmp3"
+  i=$(( $i + 1 ))
+done
+
+###################################################################################
+
+#titles and errors functions            
+
+it1=0 && it2=0
+
+          #$1 = error message to display        
+          #$2 = error extension for the msg file
+DAMNED () { echo ; echo '@&?%! '"${1}" ; echo "*${0#$MARbin/} aborted*" ;
+            [ ${#2} -gt 0 ] && [ -f $msg ] && mv -f $msg $msg.?$2 || touch $msg.?$2 ;}
+
+ERROR ()  { echo '@&?%! '"${1} (y/n) (n=abort)" ;
+            read answer ; abort="*${0#$MARbin/} aborted*" ;
+            case $answer in (y) echo ;; (n|*) echo "$abort" && echo && exit ;;
+            esac ; }
+
+CHOICE () { echo ; echo "${1} (y/n)" ; answer=o ; read answer ;
+            case $answer in ([!yn]) DAMNED "wrong answer!" ;; esac ; }
+
+TITLE0 () { echo ; echo "${plus[80]}" ;
+            echo "${plus[39-${#1}/2]} ${1} ${plus[39-${#1}/2]}" ;
+            echo "${plus[80]}" ; echo ; }
+
+TITLE1 () { it1=$(( $it1 + 1 )) ; it2=0 ;
+            echo ; echo "- $it1 - ${1} ${hyphen[73-${#1}]}" ; 
+}
+TITLE2 () { it2=$(( $it2 + 1 )) ;
+            echo ; echo "- $it1.$it2 - ${1} ${hyphen[31-${#1}]}" ; echo ; }
+
+REMARK () { echo "-> ${1}..." ; }
+
+case $cluster in
+(nic|idris|foehn|ceci|nasa|froggy)
+  END_EXIT () { exit ; } ;;
+(linux)
+  if [ $job_pbs = "n" ] ; then
+  END_EXIT () { mv -f  $CMDfile.log  $msg.eo ; exit ; }
+  else
+  END_EXIT () { 
+    [ -f $HOME/${PBS_JOBID%%\.*}.`hostname`.ER ] &&  \
+    File=$HOME/${PBS_JOBID%%\.*}.`hostname`.ER ;
+    [ -f /var/spool/torque/spool/${PBS_JOBID%%\.*}.`hostname -f`.ER ] &&  \
+    File=/var/spool/torque/spool/${PBS_JOBID%%\.*}.`hostname -f`.ER ;
+    [ ${#msg} -eq 0 ] && msg=$WRKmsg/$PBS_JOBNAME ;
+    mv -f $File $msg.eo 2>/dev/null ;
+    exit ; }
+  fi ;;
+esac
+
+###################################################################################
+
+#leap/normal year function              
+
+set_time_arrays () {
+  testyr=$1
+  leapyr=1   #assumed = normal year
+  if (( testyr % 4 == 0 )) ; then
+    if (( testyr % 100 == 0 )) ; then
+      if (( testyr % 400 == 0 )) ; then
+        leapyr=0  #leap year
+      fi
+    else
+      leapyr=0    #leap year
+    fi
+  fi
+  if   [ $leapyr -eq 0 ] ; then
+   day=(x 31 29 31 30 31 30 31 31 30 31 30 31)
+  elif [ $leapyr -eq 1 ] ; then
+   day=(x 31 28 31 30 31 30 31 31 30 31 30 31)
+  fi
+
+  if [ ${#yr_360} -gt 0 ] && [ $yr_360 == "y" ] ; then
+   day==(x 30 30 30 30 30 30 30 30 30 30 30 30)
+  fi
+
+  if [ ${#yr_365} -gt 0 ] && [ $yr_365 == "y" ] ; then
+   day=(x 31 28 31 30 31 30 31 31 30 31 30 31)
+  fi
+
+  month[1]=Jan ; month[2]=Feb ; month[3]=Mar ; month[4]=Apr ; month[5]=May
+  month[6]=Jun ; month[7]=Jul ; month[8]=Aug ; month[9]=Sep ; month[10]=Oct
+  month[11]=Nov ; month[12]=Dec
+  return $leapyr ;
+}
+
+###################################################################################
+
+#functions to write in job command file 
+
+  #instruction
+BCH ()  { echo "$1" >> $CMDfile ; }
+  #title
+wt=0
+BCHt () { wt=$(( $wt + 1 ))
+          echo                                             >> $CMDfile
+          echo "#${hyphen[79]}"                            >> $CMDfile
+          echo "# $wt - $1"                                >> $CMDfile
+          echo "#${hyphen[79]}"                            >> $CMDfile
+          echo 'echo ; echo "---- '$wt' ---- '$1'" ; echo' >> $CMDfile
+          echo                                             >> $CMDfile ; }
+          #                                               
+          ##79-                                           
+          ## 1 - Titre                                    
+          ##79-                                           
+          #echo ; echo "-------- 1 -------- Titre" ; echo 
+          #                                               
+
+  #comment
+BCHc () { echo       >> $CMDfile
+          echo '#'$1 >> $CMDfile
+          echo       >> $CMDfile ; }
+          #                                               
+          ##comment                                       
+          #     
+
+###################################################################################
+
+#stock function: automatised ftp on the mass storage system
+
+  #usage: aftp put [local-dir/]local-file   [[remote-dir/]remote-file]
+  #       aftp get [remote-dir/]remote-file [[local-dir/]local-file]  
+  #       aftp mkdir remode-dir                                       
+  #       ...                                                         
+
+aftp () { (
+ftp -n -v <<EOF
+open $stock
+user $USER `tail $MARbin/util/password | awk '{print $1}'`
+bin
+prompt
+$@
+bye
+EOF
+) > $$
+case $1 in
+  (put) [ `cat $$ | grep -c "226 File receive OK."` -ne 1 ] && return 99 || rm -f $$ ;;
+  (get) [ `cat $$ | grep -c "226 File send OK."`    -ne 1 ] && return 99 || rm -f $$ ;;
+  (ls)  cp $$ aftp$$ ;;
+esac
+rm -f $$ ; }
+
+###################################################################################
+
+#tar function: tar a file in a directory
+
+  #$1 = directory of the file(s) to tar           
+  #$2 = name      of the file(s) to tar           
+  #$3 = name      of the tared file (default = $2)
+
+  #tarX returns 0  if successfully completed
+  #             99 if an error occurred     
+      
+tarX () { cd $1
+          nam="$2"
+          [ ${#3} -ne 0 ] && nam="$3"
+          tar cvf $nam.tar $2
+          if [ $? -eq 0 ] ; then
+            echo "tar: $1/$2 -> $1/$nam.tar"
+            return 0
+          else
+            echo "'@&?%! 'tar: $1/$2 -> $1/$nam.tar (not tared)"
+            return 99
+          fi ; }
+
+###################################################################################
+
+#gzip function: gzip a file in a directory
+
+  #$1 = directory of the file to gzip
+  #$2 = name      of the file to gzip
+
+  #gzipX returns 0  if successfully completed
+  #              99 if an error occurred            
+
+gzipX () { cd $1
+           nice -n19 gzip -9 $1/$2
+           if [ $? -eq 0 ] ; then
+             echo "gzip: $1/$2 -> $1/$2.gz"
+             return 0
+           else
+             echo "'@&?%! 'gzip: $1/$2 (not gzipped)"
+             return 99
+           fi ; }
+
+###################################################################################
+
+#decompressing function: decompress a file (tar and/or gzipped)
+
+  #$1 = directory of the file to decompress              
+  #$2 = name      of the file to decompress              
+  #$3 = tar/gzip extension of the file [tar/gz/tar.gz]   
+  #$4 = name of a file get after decompression (optional)
+
+  #ucX returns 0 if successfully completed
+  #            1 if an error occurred     
+
+ucX () { cd $1
+         if [ -f $1/$2$3 ] ; then
+           [ "${3}" = ".gz"      ] && gunzip  -f "$2$3"
+           [ "${3}" = ".bz2"     ] && bunzip2 -f "$2$3"
+           [ "${3}" = ".tar"     ] && tar xf     "$2$3"   
+           [ "${3}" = ".tar.gz"  ] && gunzip  -f "$2$3" && tar xf "$2.tar"   
+           [ "${3}" = ".tar.bz2" ] && bunzip2 -f "$2$3" && tar xf "$2.tar"   
+           [ "${3}" = ".tgz"     ] && tar zxf    "$2$3"
+           [ "${3}" = ".tbz"     ] && tar jxf    "$2$3"
+           if [ ${#4} = "" ] ; then
+           #the tar file was not splitted into several file
+             if [ -f $1/$2 -o -d $1/$2 ] ; then
+               echo "uc: $1/$2$3"
+               [ -f $1/$2.tar ] && rm -f $1/$2.tar
+               return 0
+             else
+               DAMNED "uc: $1/$2$3 (not uncompressed)" "uc"
+               return 99
+             fi
+           else
+           #the tar file was splitted into several files and exists anymore    
+           #=> success test is made on one of the file it's supposed to contain
+             if [ -f $1/$4 -o -d $1/$4 ] ; then
+               echo "uc: $1/$2$3"
+               [ -f $1/$2.tar ] && rm -f $1/$2.tar
+               return 0
+             else
+               DAMNED "uc: $1/$2$3 (not decompressed)" "uc"
+               return 99
+             fi
+           fi
+         else
+           DAMNED "decompressing: $1/$2$3 non-existent" "stk"
+           return 99
+         fi ; }
+
+
+
+###################################################################################
+
+#stock-get function: get a file on the mass storage system
+
+#$1 = directory of the file on stock
+#$2 = name	  of the file on stock
+#$3 = destination directory on home 
+
+#smget returns  0 if successfully completed
+#	       99 if an error occurred
+
+if [ ${cluster} == "linux" ] || [ ${cluster} == "nic" ] || [ ${cluster} == "ceci" ]  ; then
+
+   smget () { if [ $stock = "none" ] ; then
+              cp -f $1/$2 $3/$2 && err=$?
+             else
+
+              RAND=$RANDOM                
+
+              if [ ${#gateway} -gt 0 ] ; then
+
+               i=0 ; err=1
+               while [ $err -ne 0 ] && [ $i -le 100 ]; do
+                j=$(( $i * 2 )) ; [ $j -ge 60 ] && j=60
+                sleep $j        ; i=$(( $i + 1 ))
+                $gateway "scp -q $optionssh $ustock@$stock:$1/$2 $FTPdir/$2-$RAND"
+                mkdir $3 &>/dev/null
+                mv $FTPdir/$2-$RAND $3/$2 ; err=$?
+               done
+
+              else
+
+              i=0 ; err=1
+              while [ $err -ne 0 ] && [ $i -le 100 ]; do
+               j=$(( $i * 2 )) ; [ $j -ge 60 ] && j=60
+               sleep $j        ; i=$(( $i + 1 ))
+               mkdir $3 &>/dev/null
+               scp -q $optionssh $ustock@$stock:$1/$2 $3/$2  ; err=$?
+              done
+
+              fi
+             fi
+
+
+             if [ $? -eq 0 ] ; then
+              echo "smget: $1/$2 -> $3/$2"
+              return 0
+             else
+              DAMNED "smget: $1/$2 not -> $3/$2" "stk"
+              return 99
+             fi ; }
+fi
+
+
+if [ ${cluster} == "idirs" ] ; then
+  smget () { cd $3 ; mfget  $1/$2 ;
+             if [ $? -eq 0 ] ; then
+             echo "smget: $1/$2 -> $3/$2"
+             return 0
+             else
+             DAMNED "smget: $1/$2 not -> $3/$2" "stk"
+             return 99
+             fi ; }
+fi
+
+if [ ${cluster} == "foehn" ] || [ ${cluster} == "froggy" ] ; then
+  smget () { cd $3 ; iget -v -f  $1/$2 ;
+             if [ $? -eq 0 ] ; then
+             echo "smget: $1/$2 -> $3/$2"
+             return 0
+             else
+             DAMNED "smget: $1/$2 not -> $3/$2" "stk"
+             return 99
+             fi ; }
+fi
+
+
+if [ ${cluster} == "nasa" ] ; then
+  smget () { cp -f  $1/$2 $3/$2 ;
+             if [ $? -eq 0 ] ; then
+             echo "smget: $1/$2 -> $3/$2"
+             return 0
+             else
+             DAMNED "smget: $1/$2 not -> $3/$2" "stk"
+             return 99
+             fi ; }
+fi
+
+###################################################################################
+
+#stock-put function: put a file on the mass storage system
+
+#$1 = directory of the file on home
+#$2 = name	  of the file on home
+#$3 = destination directory on stock
+
+#smput returns  0 if successfully completed
+#	       99 if an error occurred
+
+
+if [ ${cluster} == "linux" ] || [ ${cluster} == "nic" ] || [ ${cluster} == "ceci" ] ; then
+
+ smput () { if [ $stock = "none" ] ; then
+             cp -f $1/$2 $3/$2 && err=$?
+            else
+
+              RAND=$RANDOM
+
+             if [ ${#gateway} -gt 0 ] ; then
+
+              cp -f $1/$2               $FTPdir/$2-$RAND
+
+              i=0 ; err=1
+              while [ $err -ne 0 ] && [ $i -le 100 ] ; do
+               j=$(( $i * 2 )) ; [ $j -ge 60 ] && j=60
+               sleep $j        ; i=$(( $i + 1 )) 
+               $gateway                     "ssh $optionssh $ustock@$stock mkdir -p $3" &
+               $gateway "scp -q $optionssh $FTPdir/$2-$RAND $ustock@$stock:$3/$2" ; err=$?
+              done
+  
+              rm -f                     $FTPdir/$2-$RAND
+               
+             else
+  
+              i=0 ; err=1
+              while [ $err -ne 0 ] && [ $i -le 100 ] ; do
+              j=$(( $i * 2 )) ; [ $j -ge 60 ] && j=60
+               sleep $j        ; i=$(( $i + 1 ))
+               ssh $optionssh          $ustock@$stock "mkdir -p $3"
+               scp $optionssh -q $1/$2 $ustock@$stock:$3/$2  ; err=$?
+              done
+
+             fi
+            fi
+
+            if [ $err -eq 0 ] ; then
+             echo "smput: $1/$2 -> $3/$2"
+             return 0
+            else
+             DAMNED "smput: $1/$2 not -> $3/$2" "stk"
+             cp -f $1/$2 $FTPdir
+             return 99
+            fi ; }
+fi
+
+if [ ${cluster} == "idirs" ] ; then
+  smput () { cd $1 ; mfput  $2  $3/$2 ;
+             if [ $? -eq 0 ] ; then
+              echo "smput: $1/$2 -> $3/$2"
+              return 0
+             else
+              DAMNED "smput: $1/$2 not -> $3/$2" "stk"
+              return 99
+             fi ; }
+fi
+
+if [ ${cluster} == "foehn" ] || [ ${cluster} == "froggy" ] ; then
+  smput () { cd $1 ; iput -f -v  $2  $3/$2 ;
+             if [ $? -eq 0 ] ; then
+              echo "smput: $1/$2 -> $3/$2"
+              return 0
+             else
+              DAMNED "smput: $1/$2 not -> $3/$2" "stk"
+              return 99
+             fi ; }
+fi
+
+if [ ${cluster} == "nasa" ] ; then
+  smput () { mkdir   -p $3 ;
+             cp -f  $2  $3/$2 ;
+             if [ $? -eq 0 ] ; then
+              echo "smput: $1/$2 -> $3/$2"
+              return 0
+             else
+              DAMNED "smput: $1/$2 not -> $3/$2" "stk"
+              return 99
+             fi ; }
+fi
+
+###################################################################################

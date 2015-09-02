@@ -1,0 +1,105 @@
+#!/bin/bash
+#
+# v3.1 - 21.06.2006 (03.09.2003)
+#                                                                               
+# NAME                                                                          
+#                                                                               
+#   CODE.ctr - parameters for the CODE script                                   
+#                                                                               
+# SYNOPSIS                                                                      
+#                                                                               
+#   <nihil>                                                                     
+#                                                                               
+# OPERANDS                                                                      
+#                                                                               
+#   <nihil>                                                                     
+#                                                                               
+# DESCRIPTION                                                                   
+#                                                                               
+#   The CODE.ctr ("CODE control") file contains the user's parameter for        
+#   running the MAR pre-processing (NESTOR) on a new MAR domain of simulation.  
+#                                                                               
+
+
+#===============================================================================
+#                                MAR OPTIONS                                    
+#                                                                               
+# Dynamics                                                           WAF ANT EUR
+#                                                                               
+
+NH="F"      # basic non-hydrostatic option                            F   F   F 
+NHs="F"     # slope non-hydrostatic option                            F   F   F 
+NHh="F"     # heat  non-hydrostatic option                            F   F   F 
+
+DD="F"      # divergence damper     option                            F   F   F 
+
+#                                                                               
+# Advection scheme                                                   WAF ANT EUR
+#                                                                               
+
+AD="L"      # L: leap-frog back                                       L   L   L
+            # -: cubic spline                                                 
+
+#                                                                               
+# Convective adjustement scheme                                      WAF ANT EUR
+#                                                                               
+
+CA="b"      # -: no convective adjustment                             b   b   b
+            # b:    convective adjustment MNH (Peter Bechtold)                  
+            # E:    convective adjustment     (Kerry Emmanuel)                  
+
+#                                                                               
+# Radiative transfer scheme                                          WAF ANT EUR
+#                                                                               
+
+RT="E"      # M: UCL/ASTR (no vectorised)                             E   L   E
+            # L: LMDZ                                                           
+            # E: ECMWF                                                          
+
+#                                                                               
+# Turbulence transfer scheme                                         WAF ANT EUR
+#                                                                               
+
+TU="e"      # L: K-l Therry & Lacarrere closure                       e   e   e
+            # e: K-e Duynkerke          closure                                 
+
+#
+# Water mass balance                                                 WAF ANT EUR
+#
+
+WB="F"      # water mass balance                                      T   T   T
+#Augmente significativement le temps de calcul
+
+#                                                                               
+# Surface-vegetation-atmosphere transfer scheme                      WAF ANT EUR
+#                                                                               
+
+SV="T"      # T: SISVAT                                               T   T   T
+            # F: Force restore model (Deardorff)                                
+
+SN="T"      # snow model (does not work for the force restore model)  T   T   T 
+IB="T"      # ice-sheet surface mass balance                          F   T   T 
+BS="F"      # blowing snow        model                               T   T   T
+ES="F"      # evolutive sastrugi  model                               F   T   F
+AR="T"      # Andreas * roughness model                               F   T   F
+OR="F"      # orography roughness set-up                              T   T   T
+
+SR="F"      # scalar    roughness model                               F   T   F
+PO="F"      # polynya - sea-ice model                                 F   F   F 
+
+#                                                                               
+# Others                                                                        
+#                                                                               
+
+LS="ERA40"        # LSC forcing                                    [ERA15/ERA40]
+VE="F"            # vectorisation                                          [T/F]
+
+VC="T"            # small vectorisation                                    [T/F]
+MP="T"            # Open-MP                                                [T/F]
+DP="F"            # Double precision                                       [T/F]
+
+
+fsplit=y          # compile the fsplitted MAR code (idris=n)               [y/n]
+
+#                                                                               
+#===============================================================================

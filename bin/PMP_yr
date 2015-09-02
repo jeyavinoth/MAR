@@ -1,0 +1,54 @@
+#!/bin/bash
+
+. INI.ctr
+
+i=1
+
+SIM=$1
+YYYY=$2
+
+[ $# -ne 2 ]         &&                         echo "PMP_yr SIM YYYY" && exit 1
+[ ${YYYY} -le 1900 ] || [ ${YYYY} -ge 2100 ] && echo "PMP_yr SIM YYYY" && exit 1
+
+until [ $i -eq 10 ] ; do
+
+ PMP $SIM $YYYY 0$i 01 00
+
+ i=$(( $i + 1 ))
+
+done
+
+i=10
+
+until [ $i -eq 13 ] ; do
+
+ PMP $SIM $YYYY $i 01 00
+
+ i=$(( $i + 1 ))
+
+done
+
+if [ $YYYY -lt 2000 ] ; then
+ YY=$(( ${YYYY} - 1900 ))
+else
+ YY=$(( ${YYYY} - 2000 ))
+ [ ${#YY} -eq 1 ] && YY="0"${YY}
+fi
+
+File="$SIMdir/GR${SIM:0:1}/post/MAPOST/run/PMP$SIM$YYYY.qsub"
+
+echo "#!/bin/ksh"                                         >  $File
+
+echo "cd $SIMdir/GR${SIM:0:1}/post/MAPOST/run"            >> $File
+echo "for file in PMP_GR${SIM}.${YY}* ; do"               >> $File
+echo ' time ./$file'                                      >> $File
+echo "done"                                               >> $File
+
+echo "qsub $File"
+
+chmod +x $File
+
+qsub $File
+
+exit
+

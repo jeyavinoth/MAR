@@ -1,0 +1,1671 @@
+#!/bin/bash                                                                     
+#
+# E. Vanvyve / X. Fettweis - 07.08.2013
+#                                                                               
+# NAME                                                                          
+#                                                                               
+#   NST - pre-process MAR (NESTOR)                                              
+#                                                                               
+# SYNOPSIS                                                                      
+#                                                                               
+#   NST  domain  year  month  [day|slice]                                       
+#                                                                               
+# OPERANDS                                                                      
+#                                                                               
+#   domain    MAR simulation domain                       (e.g. EUa )       [a3]
+#   year      year         of the period to pre-process   (e.g. 1993)       [i4]
+#   month     month        of the period to pre-process   (e.g. 12  )       [i2]
+#   day       start day    of the period to pre-process   (e.g. 02  )       [i2]
+#               -> up to the end of the month                                   
+#   slice     length steps of the period to pre-process   (e.g. b)          [a1]
+#              a = first  fortnight of the month (01-15)                        
+#              b = second fortnight of the month (16-end_of_the_month)          
+#              o = entire month                                                 
+#                                                                               
+# DESCRIPTION                                                                   
+#                                                                               
+#   The NST script pre-processes MAR with NESTOR, for the asked domain & period 
+#   NESTOR is assumed to be UNIQUE for each domain defined with the INI script. 
+#   So, any consequent change in the NESTOR parameterization here below should  
+#   lead to a new "domain" (cfr the INI script) and not be done in the same as  
+#   previous, in order to avoid bad suprise later...                           
+#   It's better to run NESTOR with the same periodicity as MAR, so that MAR has
+#   no problem to find the correct input forcing fiels when running.
+#                                                                               
+
+#set -x
+
+#-------------------------------------------------------------------------------
+# HELP                                                                          
+#-------------------------------------------------------------------------------
+
+[ ${#1} -eq 0 ] && head -34 $0 && exit
+
+
+#-------------------------------------------------------------------------------
+#  SCRIPT INITIALISATION                                                        
+#-------------------------------------------------------------------------------
+
+#                                                                               
+# User's parameters                                                             
+#---------------------------------------
+
+#INI.ctr                                 
+
+tmp=`ls ${0%/*}/INI.ctr | wc -l`  #to avoid search in subdirectories
+[ $tmp -ne 1 ] && echo '@&?%! '"fatal error: ${0%/*}/INI.ctr nonexistent" && exit
+
+control=${0%/*}/INI.ctr
+. $control
+
+#$0.ctr                                 
+
+tmp=`ls $0.ctr | wc -l`  #to avoid search in subdirectories
+[ $tmp -ne 1 ] && echo '@&?%! '"fatal error: $0.ctr nonexistent" && exit
+
+control=$0.ctr
+. $control
+
+#FUNCTIONS
+
+[ "$n03" == "CM3" ] && yr_360=y
+[ "$n03" == "CAN" ] && yr_365=y
+[ "$n03" == "NOR" ] && yr_365=y
+[ "$n03" == "MIR" ] && yr_365=y
+[ "$n03" == "BNU" ] && yr_365=y
+[ "$n03" == "CSI" ] && yr_365=y
+[ "$n03" == "BCC" ] && yr_365=y
+[ "$n03" == "IPL" ] && yr_365=y
+
+. FUNCTIONS
+
+#                                                                               
+# System initialisation                                                         
+#---------------------------------------
+
+#main script parameters values          
+
+case $cluster in (nic|linux|idris|foehn|nasa|froggy) echo ;;
+  (*) echo '@&?%! '"script not done for $cluster" && exit ;;
+esac
+
+#-------------------------------------------------------------------------------
+#  TITLE                                                                        
+#-------------------------------------------------------------------------------
+TITLE0 "MAR PRE-PROCESSING (NESTOR) "
+
+
+#-------------------------------------------------------------------------------
+#  1 - INITIALISATION                                                           
+#-------------------------------------------------------------------------------
+TITLE1 "INITIALISATION"
+
+#                                                                               
+# Your parameters                                                               
+#---------------------------------------                             
+TITLE2 "Your parameters"
+
+  # WLDreg   = world region (GR, AN, EU, BE, ...)             
+  # domain   = domain of simulation (EUa, BEm, ...)       
+  # run name = name of the run in domain/ (a01, m16, ...) 
+
+#script argument                        
+
+usage="\nusage: NST  domain  year  month  [day|slice]"
+[ ${#1} -eq 0 ] && DAMNED "argument missing [domain]\n$usage"
+[ ${#2} -eq 0 ] && DAMNED "argument missing [period: year]\n$usage"
+[ ${#3} -eq 0 ] && DAMNED "argument missing [period: month]\n$usage"
+zut="zut"
+arg1=$1 
+arg2=$2
+arg3=$3
+arg4=${4:-$zut}
+arg5=${5:-$zut}
+[ $arg5 != $zut ] && DAMNED "too many arguments [$5]\n$usage"
+
+#NST.ctr arguments: user's dir. paths   
+
+MARbin=${MARbin%/}
+SIMdir=${SIMdir%/}
+STKsrf=${STKsrf%/}
+STKmar=${STKmar%/} ; [ ${#STKmar} -eq 0 ] && STKmar="."
+WRKdir=${WRKdir%/}
+WRKmsg=${WRKmsg%/}
+STKlsc=${STKlsc%/}
+
+#NST.ctr arguments: y/n values          
+
+case $nstin1 in ([!yn]) DAMNED "parameter error: nstin1 [$nstin1]" ;; esac
+case $nstou1 in ([!yn]) DAMNED "parameter error: nstou1 [$nstou1]" ;; esac
+case $marin1 in ([!yn]) DAMNED "parameter error: marin1 [$marin1]" ;; esac
+case $dblprc in ([!yn]) DAMNED "parameter error: dblprc [$dblprc]" ;; esac
+
+#NST.ctr arguments: NSTing.ctr values   
+
+case $n06 in ([!TF]) DAMNED "NSTing.ctr parameter error: n06 [$n06]" ;; esac
+case $n07 in ([!TF]) DAMNED "NSTing.ctr parameter error: n07 [$n07]" ;; esac
+case $n08 in ([!TF]) DAMNED "NSTing.ctr parameter error: n08 [$n08]" ;; esac
+case $n09 in ([!TF]) DAMNED "NSTing.ctr parameter error: n09 [$n09]" ;; esac
+case $n12 in ([!TF]) DAMNED "NSTing.ctr parameter error: n12 [$n12]" ;; esac
+case $n13 in ([!TFAa]) DAMNED "NSTing.ctr parameter error: n13 [$n13]" ;; esac
+case $n14 in ([!TF]) DAMNED "NSTing.ctr parameter error: n14 [$n14]" ;; esac
+case $n15 in ([!TF]) DAMNED "NSTing.ctr parameter error: n15 [$n15]" ;; esac
+case $n16 in ([!TF]) DAMNED "NSTing.ctr parameter error: n16 [$n16]" ;; esac
+case $n17 in ([!TF]) DAMNED "NSTing.ctr parameter error: n17 [$n17]" ;; esac
+case $n18 in ([!TF]) DAMNED "NSTing.ctr parameter error: n18 [$n18]" ;; esac
+case $n19 in ([!TF]) DAMNED "NSTing.ctr parameter error: n19 [$n19]" ;; esac
+case $n20 in ([!TF]) DAMNED "NSTing.ctr parameter error: n20 [$n20]" ;; esac
+case $n21 in ([!TF]) DAMNED "NSTing.ctr parameter error: n21 [$n21]" ;; esac
+case $n22 in ([!TF]) DAMNED "NSTing.ctr parameter error: n22 [$n22]" ;; esac
+case $n23 in ([!TF]) DAMNED "NSTing.ctr parameter error: n23 [$n23]" ;; esac
+case $n24 in ([!TF]) DAMNED "NSTing.ctr parameter error: n24 [$n24]" ;; esac
+case $n25 in ([!TF]) DAMNED "NSTing.ctr parameter error: n25 [$n25]" ;; esac
+case $n26 in ([!TF]) DAMNED "NSTing.ctr parameter error: n26 [$n26]" ;; esac
+case $n27 in ([!TF]) DAMNED "NSTing.ctr parameter error: n27 [$n27]" ;; esac
+case $n29 in ([!TF]) DAMNED "NSTing.ctr parameter error: n29 [$n29]" ;; esac
+case $n30 in ([!TF]) DAMNED "NSTing.ctr parameter error: n30 [$n30]" ;; esac
+case $n31 in ([!TF]) DAMNED "NSTing.ctr parameter error: n31 [$n31]" ;; esac
+case $n33 in ([!TF]) DAMNED "NSTing.ctr parameter error: n33 [$n33]" ;; esac
+[ $n01 -ne 1 -a $n01 -ne 2 -a $n01 -ne 3 ] && DAMNED "NSTing.ctr parameter error: n01 [$n01]"
+[ $n35 -ne 1 -a $n35 -ne 2 -a $n35 -ne 3 ] && DAMNED "NSTing.ctr parameter error: n35 [$n35]"
+[ $n34 -ne 0 -a $n34 -ne 1 -a $n34 -ne 2 ] && DAMNED "NSTing.ctr parameter error: n34 [$n34]"
+[ $n10 -ne 1 -a $n10 -ne 3 ] && DAMNED "NSTing.ctr parameter error: n10 [$n10]"
+[ $n11 -ne 1 -a $n11 -ne 3 ] && DAMNED "NSTing.ctr parameter error: n11 [$n11]"
+[ $ant = "" ] && DAMNED "NSTing.ctr parameter error: ant [$ant]"
+
+
+#world region                           
+
+case $WLDreg in
+  (EU) tmp="Europe" ;;
+  (WA) tmp="West Africa" ;;
+  (AN) tmp="Antarctica" ;;
+  (GR) tmp="Greenland" ;;
+  (BE) tmp="Belgium" ;;
+  (*)  tmp="extraterrestrial land..." ;;
+esac
+
+#user's parameters                      
+
+echo "general world region   : $WLDreg ($tmp)"
+echo
+echo "SIMdir directory       : $SIMdir"
+echo "LSC directory on stock : $STKlsc"
+echo "surface files on stock : $STKsrf"
+echo "MAR directory on stock : $STKmar"
+echo "batched job messages in: $WRKmsg"
+echo "work directory for job : $WRKdir"
+echo
+[ $cluster = "idris" -a $nstin1 = "y" ] && tmp="(not advised on idris)" ||tmp=""
+echo "input files are gzipped: $nstin1 $tmp"
+[ $cluster = "idris" -a $nstou1 = "y" ] && tmp="(not advised on idris)" ||tmp=""
+echo "gzip output       files: $nstou1 $tmp"
+echo "save output init. files: $marin1"
+echo "NESTOR in double prec. : $dblprc"
+echo
+echo "cluster                : $cluster ($walltime h walltime)"
+if [ $cluster = "linux" ] ; then
+echo "job submission with PBS: $job_pbs"
+fi
+echo "stock address          : $stock"
+echo
+
+#echo "<return>" ; read
+
+#                                                                               
+# Check the domain name                                                         
+#---------------------------------------                             
+TITLE2 "Check the domain name"
+
+domain=$arg1  #EUa, BEm...
+
+#length                                 
+
+[ ${#domain} -ne 3 ] && DAMNED "format error: domain name (a3) [$domain]"
+
+echo "domain: $domain"
+echo "associated world region: $WLDreg"
+
+#LSC file denomination                  
+
+  #for ERA-40, it is 'EUR' for example ECM.1993.12.01-15.EUR.nc
+
+case $WLDreg in
+  (GR) LSCreg=GRD ;;
+  (AN) LSCreg=ANT ;;
+  (EU) LSCreg=EUR ;;
+  (BE) LSCreg=EUR ;;
+  (WA) LSCreg=WAF ;;
+  (*)  DAMNED "fatal error: \$LSCreg undefined" ;;
+esac
+
+echo "associated region: $LSCreg"
+
+#check the validity of the domain name  
+
+k=0
+for i in `ls $SIMdir | awk '{ print($0) }'` ; do
+  [ $i = $domain ] && k=$(($k+1))
+  [ ${i%?} = $WLDreg ] && dom=$dom" $i"
+done
+[ ${#dom} -le 1 ] && dom=" none"
+[ $k -ne 1 ] && DAMNED "nonexistent domain! [$domain]  (suggestion:$dom)"
+
+#                                                                               
+# Check the simulation dates                                                    
+#---------------------------------------                             
+TITLE2 "Checking the simulation dates"
+
+  #./NST  $1      $2  $3  $4         
+  #./NST  domain  yr  mo  [day/slice]
+
+yrI=$arg2        #e.g. 1993
+moI=$arg3        #e.g.   12
+
+#year                                   
+
+[ ${#yrI} -ne 4 ] && DAMNED "format error: year (i4) [$yrI]"
+
+if [ $yrI -lt 1850 -o $yrI -gt 2200 ] ; then
+  DAMNED "value error: year $yrI unavailable (1850-2200)"
+fi
+
+set_time_arrays $yrI
+
+tyrI=${yrI#??}   #e.g.   93
+yrF=$yrI ; tyrF=${yrF#??}
+
+#month                                  
+
+[ ${#moI} -ne 2 ] && DAMNED "format error: month (i2) [$moI]"
+[ $moI -gt 12 -o $moI -lt 1 ] && DAMNED "value error: month [$moI]"
+
+tmoI=$moI
+moF=$moI ; tmoF=$moI ; [ ${#tmoF} -eq 1 ] && tmoF="0"$tmoF
+
+#day1 (start), day2 (end)              
+
+case $arg4 in
+  (zut)        d1=01    && d2=${day[10#$moI]} && slice=o ;;
+  (o)          d1=01    && d2=${day[10#$moI]} && slice=$arg4 ;;
+  (a)          d1=01    && d2=15              && slice=$arg4 ;;
+  (b)          d1=16    && d2=${day[10#$moI]} && slice=$arg4 ;;
+  ([0-9][0-9]) if [ $arg4 -gt ${day[10#$moI]} ] ; then
+                 DAMNED "value error: day [$arg4]"
+               else
+                 d1=$arg4 && d2=${day[10#$moI]} && slice=o
+               fi ;;
+  (*)          DAMNED "4th argument error [period: day/slice]\n$usage" ;;
+esac
+
+d1I=$d1 ; td1I=$d1I ; [ ${#td1I} -eq 1 ] && td1I="0"$td1I
+d2F=$d2 ; td2F=$d2F ; [ ${#td2F} -eq 1 ] && td2F="0"$td2F
+
+set_time_arrays $yrI
+
+#next period for LSC files              
+d1N=$(( 10#$d2F + 1 ))
+moN=$moF
+if [ $d1N -gt ${day[10#$moI]} ] ; then
+  d1N="01"
+  moN=$(( 10#$moN + 1 ))
+fi
+if [ $moN -eq 13 ] ; then
+  yrN=$(( $yrI + 1 )) && moN="01"
+else
+  yrN=$yrI
+fi
+tyrN=${yrN#??}
+tmoN=$moN ; [ ${#tmoN} -eq 1 ] && tmoN="0"$tmoN
+td1N=$d1N ; [ ${#td1N} -eq 1 ] && td1N="0"$td1N
+
+
+#length of the simulation               
+
+len=$(( $d2F - $d1I + 1 ))
+[ ${#len} -eq 1 ] && len="0"$len
+
+echo "simulation period: $td1I ${month[10#$moI]} $yrI to $td2F ${month[10#$moF]} $yrF (slice $slice)"
+echo "simulation length: $len days"
+echo
+echo "large-scale forcing: next period starts on $td1N ${month[10#$moN]} $yrN"
+
+#                                                                               
+# Find LSC data files on stock                                                  
+#---------------------------------------                             
+TITLE2 "Find LSC data files on stock"
+
+#names of LSC data files are stored in ${fil[.]}
+
+#function: searching most suitable files
+
+findsuitablefile () {
+  # synopsis: findsuitablefile MAR $path 0 YYYY MM DD DD
+  # function arguments: $1 = type of searched file [MAR|ECM]
+  #                     $2 = file path
+  #                     $3 = flag (1 = last period, 0 = any other)
+  #                     $4 = year      of the user-wanted period (i4)  [Pyr]
+  #                     $5 = month     of the user-wanted period (i2)  [Pmo]
+  #                     $6 = first day of the user-wanted period (i2)  [Pd1]
+  #                     $7 = last  day of the user-wanted period (i2)  [Pd2]
+  #
+  # external variables: Fd1[.] = begin day of the examined files (F=file)
+  #                     Fd2[.] = end   day of the examined files
+  #                     Fmo[.] = month     of the examined files
+  #                     Fyr[.] = year      of the examined files
+  #                     
+  # output   variables: d2        = last day of the suitable found file
+  #                     MARfil[.] = array of suitable found files (MAR)
+  #                     MARyr[.]  = array with year of each of these files
+  #                     LSCfil[.] = array of suitable found files (LSC)
+  #                     LSCyr[.]  = array with year of each of these files
+  #                     mf is incremented
+
+  Pyr=$4 ; Pmo=$5 ; Pd1=$6 ; Pd2=$7
+
+  echo "period: $Pd1-$Pd2/`[ ${#Pmo} -ne 2 ] && echo 0$Pmo || echo $Pmo`/$Pyr"
+
+  #candidate matching the starting day (d1)
+  i=0 ; id1="" ; tmp=""
+  while [ $i -le $(( ${#Fd1[@]} - 1 )) ] ; do
+    if [ ${Fyr[10#$i]} -eq $Pyr ] ; then  #Fyr = Pyr
+    if [ ${Fmo[10#$i]} -eq $Pmo ] ; then  #Fmo = Pmo
+    if [ ${Fd1[10#$i]} -le $Pd1 ] ; then  #Fd1 <= Pdal
+    if [ ${Fd2[10#$i]} -ge $Pd1 ] ; then  #Fd2/Fmo/Fyr >= Pda/Pmo/Pyr
+      id1=$id1" $i"
+      tmp=$tmp" ${Fd1[10#$i]}-${Fd2[10#$i]}/$Pmo/$Pyr"
+    fi ; fi ; fi ; fi
+    i=$(( $i + 1 ))
+  done
+
+  x=$(( `echo $id1 | wc -w` ))   #x candidates matching the starting day
+  if [ $x -eq 0 ] ; then
+    DAMNED "1 no suitable file found in $2"
+  else
+    [ ${#tmp} -ne 0 ] && echo "        start-day suitable:$tmp"
+
+  #candidate matching the ending day (d2) (amongst d1-matching ones)
+    id12=""
+    [ $3 -eq 0 ] && tmp=0 || tmp=$(( 10#$Pd2 - 10#$Pd1 ))
+    for i in $id1 ; do
+      if  [ $(( 10#${Fd2[10#$i]} - 10#${Fd1[10#$i]} )) -ge $tmp ] ; then
+        id12=$id12" $i"                                #Fd2-Fd1 largest
+        [ $3 -eq 0 ] && tmp=$(( 10#${Fd2[10#$i]} - 10#${Fd1[10#$i]} ))
+      fi
+    done
+
+  #number of candidates matching starting + ending days (d1+d2)
+    x=$(( `echo $id12 | wc -w` ))  #x candidates matching both days (x=no char.)
+    if [ $x -eq 0 ] ; then
+      DAMNED "2 no suitable file found in $2"
+    else
+      tmp=""
+      for i in $id12 ; do
+        tmp=$tmp" ${Fd1[10#$i]}-${Fd2[10#$i]}/$Pmo/$Pyr"
+      done
+      echo "        & end-day suitable:$tmp"
+      if [ $3 -eq 0 ] ; then  #other periods
+        tmp=0
+        for i in $id12 ; do
+          if [  $(( 10#${Fd2[10#$i]} - 10#${Fd1[10#$i]} )) -ge $tmp ] ; then
+            tmp=$(( 10#${Fd2[10#$i]} - 10#${Fd1[10#$i]} ))
+            d1=${Fd1[10#$i]}
+            d2=${Fd2[10#$i]}
+          fi
+        done
+      else                    #last period
+        tmp=$(( 10#$Pd2 - 10#$Pd1 ))
+        tmp1=$(( ${day[10#$Pmo]} - 1 ))
+        for i in $id12 ; do
+          if [ $(( 10#${Fd2[10#$i]} - 10#${Fd1[10#$i]} )) -ge $tmp  ] ; then
+          if [ $(( 10#${Fd2[10#$i]} - 10#${Fd1[10#$i]} )) -le $tmp1 ] ; then
+              tmp1=$(( 10#${Fd2[10#$i]} - 10#${Fd1[10#$i]} ))
+              d1=${Fd1[10#$i]}
+              d2=${Fd2[10#$i]}
+          fi
+          fi
+        done
+      fi
+    fi
+  fi
+
+  #name of the most suitable file
+  [ ${#Pmo} -eq 1 ] && Pmo="0$Pmo" || Pmo="$Pmo"
+  [ ${#d1}  -eq 1 ] && d1="0$d1"   || d1="$d1"
+  [ ${#d2}  -eq 1 ] && d2="0$d2"   || d2="$d2"
+  if   [ $1 = "MAR" ] ; then
+    #MARfil[10#$mf]=MAR.$runnam.$Pyr.$Pmo.${d1}-$d2.nc
+    #MARyr[10#$mf]=$Pyr
+    echo "        MAR input file: ${MARfil[10#$mf]}"
+  else #if [ $1 = "ECM" ] || [ $1 = "CM3" ] || [ $1 = "EM5" ] || [ $1 = "CAN" ] || \
+       #[ $1 = "NOR" ] || [ $1 = "MIR" ] || [ $1 = "CM5" ] || [ $1 = "CSI" ] || \
+       #[ $1 = "BCC" ] || [ $1 = "20C" ] || [ $1 = "IPL" ] || [ $1 = "BNU" ] || \
+       #[ $1 = "NC1" ] || [ $1 = "NC2" ] || [ $1 = "AC3" ] || [ $1 = "ER2" ]  ; then
+    fil[10#$mf]=$1.$Pyr.$Pmo.${d1}-$d2.$LSCreg.nc
+    fily[10#$mf]=$Pyr
+    echo "        LSC input file: ${fil[10#$mf]}"    
+  fi
+  mf=$(( 10#$mf + 1 )) ;
+
+} #end function findsuitablefile
+
+#LSC: for each year $yr, get time periods (month&days) for each avail. file
+
+[ $nstin1 = "y" ] && Z=".gz" || Z=""
+
+lsc="ECM" 
+[ $cluster != foehn  ] && [ $cluster != froggy ]  && STKlsc=$STKlsc/$LSCreg
+
+[ ${#n02} -gt 0 ] && n02="-${n02#-}"
+
+[ "$n03" == "E40" ] && lsc="ECM" && STKlsc=$STKsrf/ERA-40
+[ "$n03" == "EIN" ] && lsc="ECM" && STKlsc=$STKsrf/ERA-Interim
+[ "$n03" == "CM3" ] && lsc="CM3" && STKlsc=$STKsrf/HadCM3
+[ "$n03" == "CM5" ] && lsc="CM5" && STKlsc=$STKsrf/CNRM-CM5$n02
+[ "$n03" == "EM5" ] && lsc="EM5" && STKlsc=$STKsrf/ECHAM5
+[ "$n03" == "CAN" ] && lsc="CAN" && STKlsc=$STKsrf/CanESM2$n02
+[ "$n03" == "NOR" ] && lsc="NOR" && STKlsc=$STKsrf/NorESM1$n02
+[ "$n03" == "MIR" ] && lsc="MIR" && STKlsc=$STKsrf/MIROC5$n02
+[ "$n03" == "BNU" ] && lsc="BNU" && STKlsc=$STKsrf/BNU-ESM$n02
+[ "$n03" == "CSI" ] && lsc="CSI" && STKlsc=$STKsrf/CSIRO-Mk3$n02
+[ "$n03" == "BCC" ] && lsc="BCC" && STKlsc=$STKsrf/BCC-CSM1$n02
+[ "$n03" == "20C" ] && lsc="20C" && STKlsc=$STKsrf/20thC_ReanV2
+[ "$n03" == "NC1" ] && lsc="NC1" && STKlsc=$STKsrf/NCEP-NCARv1
+[ "$n03" == "NC2" ] && lsc="NC2" && STKlsc=$STKsrf/NCEP-NCARv2
+[ "$n03" == "IPL" ] && lsc="IPL" && STKlsc=$STKsrf/IPSL$n02
+[ "$n03" == "AC3" ] && lsc="AC3" && STKlsc=$STKsrf/ACCESS1-3$n02
+[ "$n03" == "E20" ] && lsc="ECM" && STKlsc=$STKsrf/ERA-20C 
+
+                   NAMfil="$lsc\*$LSCreg.nc$Z"
+[ $sftp = "y" ] && NAMfil="$lsc*$LSCreg.nc$Z"
+
+REMARK "searching existing LSC files on $STKlsc "
+
+yr=$yrI ; yr2=$yrN ; x=0
+
+while [ $yr -le $yr2 ] ; do
+  case $cluster in
+    (nic|linux|nasa)   if [ $sftp = "y" ] ; then
+                    if [ ${#gateway} -gt 0 ] ; then 
+                     $gateway "$ssh $optionssh $ustock@$stock \"cd $STKlsc/$yr ; ls -1 $NAMfil\"" > aftp$$
+                    else
+                     $ssh $optionssh $ustock@$stock "cd $STKlsc/$yr ; ls -1 $NAMfil" > aftp$$
+                    fi
+                   else
+                    aftp ls $STKlsc/$yr/$NAMfil
+                   fi ;;             #ls > aftp$$
+    (idris)        ls -1   $STKlsc/$yr/$NAMfil > aftp$$ ;;    #ls > aftp$$
+    (foehn|froggy) ils   $STKlsc/$yr/ | grep .nc.gz > aftp$$  ; cat aftp$$ ;;
+  esac
+  case $cluster in
+    (nic|linux|nasa)     cat aftp$$ | grep "$lsc"    | awk '{i=NF ; print($i)}' ;;
+    (idris|foehn|froggy) cat aftp$$ | grep "$STKlsc" | awk '{i=NF ; print($i)}' ;;
+  esac
+  case $cluster in
+    (idris)
+      if [ `grep -c "$STKlsc" aftp$$` -eq 0 ] ; then
+        DAMNED "$yr, stock: $STKlsc/$yr/$NAMfil nonexistent"
+      fi
+      tmp=`cat aftp$$ | grep "$STKlsc" |                                       \
+           sed "s:$STKlsc/$yr/$lsc.::g" | sed "s/.$LSCreg.nc$Z//g" |           \
+           sed "s/\./-/g"`    #path/ECM.1993.06.01-15.EUR.nc.gz to 1993-06-01-15
+      for val in `echo $tmp` ; do
+        lscyr[$x]=`echo $val | awk 'FS="-" {print($1)}'` #get year
+        lscmo[$x]=`echo $val | awk 'FS="-" {print($2)}'` #get month
+        lscd1[$x]=`echo $val | awk 'FS=se"-" {print($3)}'` #get day (begin)
+        lscd2[$x]=`echo $val | awk 'FS="-" {print($4)}'` #get day (end  )
+        x=$(( 10#$x + 1 ))
+      done ;;
+    (nic|linux|foehn|nasa|froggy)
+      if [ `grep -c "$lsc" aftp$$` -eq 0 ] ; then
+        DAMNED "$yr, stock: $STKlsc/$yr/$NAMfil nonexistent"
+      fi
+      tmp=`cat aftp$$ | grep "$lsc" | awk '{i=NF ; print($i)}' |               \
+           sed "s:$STKlsc/$yr/::g" | sed "s:$lsc.::g" |                        \
+           sed "s/.$LSCreg.nc$Z//g" |                                          \
+           sed "s/\./-/g"`    #path/ECM.1993.06.01-15.EUR.nc.gz to 1993-06-01-15
+      for val in `echo $tmp` ; do
+        lscyr[$x]=`echo $val | awk -F - '{print($1)}'` #get year
+        lscmo[$x]=`echo $val | awk -F - '{print($2)}'` #get month
+        lscd1[$x]=`echo $val | awk -F - '{print($3)}'` #get day (begin)
+        lscd2[$x]=`echo $val | awk -F - '{print($4)}'` #get day (end  )
+        x=$(( 10#$x + 1 ))
+      done ;;
+  esac
+  yr=$(( 10#$yr + 1 ))
+  rm -f aftp$$
+done
+echo
+
+#LSC: among those files, search the most suitable for the period to pre-process
+
+REMARK "searching the most suitable LSC files"
+
+yr=$yrI ; mo=$moI ; da=$d1I
+yrE=$yrN ; moE=$moN ; daE=$d1N
+
+i=0
+while [ $i -le $(( ${#lscd1[@]} - 1 )) ] ; do
+  Fd1[$i]="${lscd1[$i]}"
+  Fd2[$i]="${lscd2[$i]}"
+  Fmo[$i]="${lscmo[$i]}"
+  Fyr[$i]="${lscyr[$i]}"
+  i=$(( $i + 1 ))
+done
+
+mf=0
+
+#YEAR < yrE
+while [ $yr -lt $yrE ] ; do
+  set_time_arrays $yr
+  #MONTH -> 12/$yr
+  while [ $mo -le 12 ] ; do
+    da2=${day[10#$mo]}
+    #DAY -> end of current month
+    while [ $da -le $da2 ] ; do
+      [ ${#da} -eq 1 ] && da="0$da"
+      findsuitablefile "$lsc" "$STKlsc" "0" "$yr" "$mo" "$da" "$da2"
+      da=$(( 10#$d2 + 1 ))
+    done
+    mo=$(( 10#$mo + 1 ))
+    da=1
+  done
+  yr=$(( 10#$yr + 1 ))
+  mo=1
+done
+
+#YEAR = yrE
+  set_time_arrays $yr
+  #MONTH < moE
+  while [ $mo -lt $moE ] ; do
+    da2=${day[10#$mo]}
+    #DAY -> end of the month
+    while [ $da -le $da2 ] ; do
+      [ ${#da} -eq 1 ] && da="0$da"
+      findsuitablefile "$lsc" "$STKlsc" "0" "$yr" "$mo" "$da" "$da2"
+      da=$(( 10#$d2 + 1 ))
+    i=$(( $i + 1 )) ; echo $i
+    done
+    mo=$(( 10#$mo + 1 ))
+    da=1
+  done
+  #MONTH = moE
+    da2=$daE
+    #DAY <= daE
+      while [ $da -le $daE ] ; do
+      [ ${#da} -eq 1 ] && da="0$da"
+        findsuitablefile $lsc "$STKlsc" "1" "$yr" "$mo" "$da" "$da2"
+        da=$(( 10#$d2 + 1 ))
+      done
+
+if [ $n25 = "T" -o $n26 = "T" ] ; then
+#                                                                               
+# Find NDVI data files on stock                                               
+#---------------------------------------                             
+TITLE2 "Find NDVI data files on stock"
+
+#names of NDVI data files       are stored in ${ndvfil[.]}
+#names of NDVI data directories are stored in ${ndvdir[.]}
+
+if   [ $WLDreg != "WA" -a $n26 = "T" ] ; then
+
+  DAMNED "no 8-km NDVI files exist for other regions than Africa"
+
+elif [ $WLDreg = "WA" -a $n26 = "T" ] ; then  #only suitable for NDVI08 on Africa
+
+REMARK "searching suitable NDVI files for the period to pre-process"
+
+# NESTOR needs 5 decades around the current dates, no matter the pre-processing
+# period, we considere here months M-1, M, and M+1
+# NDVI files are small, so it doesn't matter that much to extract some that will
+# not be used eventually.
+
+  #get years, months and decades
+  #.............................
+
+  yr=$yrI ; mo=$moI
+  tyr=${yr#??} ; [ ${#mo} -eq 1 ] && tmo="0$mo" || tmo=$mo
+
+  i=1        ; ndvtime[$i]="$tyr${tmo}01"
+  i=$((i+1)) ; ndvtime[$i]="$tyr${tmo}11"
+  i=$((i+1)) ; ndvtime[$i]="$tyr${tmo}21"
+
+  i=$((i+1))
+  mo=$(( $moI - 1 )) ; [ $mo -eq 0 ] && mo=12
+  [ $mo -eq 12 ] && yr=$(( $yrI - 1 )) || yr=$yrI
+  tyr=${yr#??} ; [ ${#mo} -eq 1 ] && tmo="0$mo" || tmo=$mo
+  ndvtime[$i]="$tyr${tmo}01"
+  i=$((i+1)) ; ndvtime[$i]="$tyr${tmo}11"
+  i=$((i+1)) ; ndvtime[$i]="$tyr${tmo}21"
+  
+  i=$((i+1))
+  mo=$(( $moI + 1 )) ; [ $mo -eq 13 ] && mo=1
+  [ $mo -eq 1 ] && yr=$(( $yrI + 1 )) || yr=$yrI
+  tyr=${yr#??} ; [ ${#mo} -eq 1 ] && tmo="0$mo" || tmo=$mo
+  ndvtime[$i]="$tyr${tmo}01"
+  i=$((i+1)) ; ndvtime[$i]="$tyr${tmo}11"
+  i=$((i+1)) ; ndvtime[$i]="$tyr${tmo}21"
+
+  echo "periods: ${ndvtime[@]}"
+
+  #get decades for the European continent (we use here the old ndvi set, since
+  #......................................  new one does not include Europe)
+
+  [ $nstin1 = "y" ] && Z=".gz" || Z=""
+  STKsrf2=$STKsrf/NDVI08/DECADE/old_set
+
+  rm -f ndv$$
+  for val in "${ndvtime[@]}" ; do
+    case $cluster in
+    (idris) ls -1 $STKsrf2/avhrrpf.ndvi.1ntfgl.${val}.nc$Z >> ndv$$ ;;
+    (nic)        aftp ls $STKsrf2/avhrrpf.ndvi.1ntfgl.${val}.nc$Z 
+                  cat aftp$$ >> ndv$$ ; rm -f aftp$$ ;;
+    esac
+  done
+  case $cluster in
+  (idris) cat ndv$$
+                if [ `grep -c "$STKsrf2" ndv$$` -eq 0 ] ; then
+                  DAMNED "$yr, stock: $STKsrf2/avhrrpf.ndvi.1ntfgl.${ndvtime[@]} nonexistent"
+                fi
+                tmp=`cat ndv$$ | grep "$STKsrf2" | sed "s:$STKsrf2/::g" |      \
+                     sed "s:.nc$Z:.nc:g"` ;;
+  (linux|nic|nasa) cat ndv$$ | grep "avhrrpf"
+        if [ `grep -c "avhrrpf" ndv$$` -eq 0 ] ; then
+          DAMNED "$yr, stock: $STKsrf2/avhrrpf.ndvi.1ntfgl.${ndvtime[@]} nonexistent"
+        fi
+        tmp=`cat ndv$$ | grep "avhrrpf" | awk '{i=NF ; print($i)}' |           \
+             sed "s:.nc$Z:.nc:g"` ;;
+  esac
+
+  j=1
+  for val in `echo $tmp` ; do
+    ndvdir[$j]=$STKsrf2
+    ndvfil[$j]=`echo $val`
+    j=$(( 10#$j + 1 ))
+  done
+  rm -f ndv$$
+
+  case $cluster in
+  (idris)       ls -1 $STKsrf2/EURndv.$yrI.nc$Z >> ndv$$ ;;
+  (linux|nic|nasa)  aftp ls $STKsrf2/EURndv.$yrI.nc$Z
+                cat aftp$$ >> ndv$$ ; rm -f aftp$$ ;;
+  esac
+  case $cluster in
+  (idris) cat ndv$$
+                if [ `grep -c "$STKsrf2" ndv$$` -eq 0 ] ; then
+                  DAMNED "$yrI, stock: $STKsrf2/EURndv.$yrI.nc$Z nonexistent"
+                fi
+                tmp=`cat ndv$$ | grep "$STKsrf2" | sed "s:$STKsrf2/::g" |      \
+                     sed "s:.nc$Z:.nc:g"` ;;
+  (linux|nic|nasa) cat ndv$$ | grep "EURndv"
+        if [ `grep -c "EURndv" ndv$$` -eq 0 ] ; then
+          DAMNED "$yrI, stock: $STKsrf2/EURndv.$yrI.nc$Z nonexistent"
+        fi
+        tmp=`cat ndv$$ | grep "EURndv" | awk '{i=NF ; print($i)}' |            \
+             sed "s:.nc$Z:.nc:g"` ;;
+  esac
+
+  for val in `echo $tmp` ; do
+    ndvdir[$j]=$STKsrf2
+    ndvfil[$j]=`echo $val`
+    j=$(( 10#$j + 1 ))
+  done
+  rm -f ndv$$
+
+  #get decades for the African continent (new data set)
+  #.....................................
+
+  [ $nstin1 = "y" ] && Z=".gz" || Z=""
+  STKsrf2=$STKsrf/NDVI08/DECADE
+
+  rm -f ndv$$
+  for i in "${ndvtime[@]}" ; do
+    case $cluster in
+    (idris) ls -1 $STKsrf2/ndvi_mar*${i}*.nc$Z >> ndv$$ ;;
+    (linux|nic|nasa)  aftp ls $STKsrf2/ndvi_mar*${i}*.nc$Z 
+                  cat aftp$$ >> ndv$$ ; rm -f aftp$$ ;;
+    esac
+  done
+  case $cluster in
+  (idris)       cat ndv$$
+                if [ `grep -c "$STKsrf2" ndv$$` -eq 0 ] ; then
+                DAMNED "$yr, stock: $STKsrf2/ndvi_mar${ndvtime[@]} nonexistent"
+                fi
+                tmp=`cat ndv$$ | grep "$STKsrf2" | sed "s:$STKsrf2/::g" |      \
+                     sed "s:.nc$Z:.nc:g"` ;;
+  (linux|nic|nasa) cat ndv$$ | grep "ndvi_mar"
+        if [ `grep -c "ndvi_mar" ndv$$` -eq 0 ] ; then
+        DAMNED "$yr, stock: $STKsrf2/ndvi_mar${ndvtime[@]} nonexistent"
+        fi
+        tmp=`cat ndv$$ | grep "ndvi_mar" | awk '{i=NF ; print($i)}' |          \
+             sed "s:.nc$Z:.nc:g"` ;;
+  esac
+
+  for val in `echo $tmp` ; do
+    ndvdir[$j]=$STKsrf2
+    ndvfil[$j]=`echo $val`
+    j=$(( 10#$j + 1 ))
+  done
+  rm -f ndv$$ 
+  
+  case $cluster in
+  (idris) ls -1 $STKsrf2/AFRndv.$yrI.nc$Z >> ndv$$ ;;
+  (linux|nic|nasa)  aftp ls $STKsrf2/AFRndv.$yrI.nc$Z
+                cat aftp$$ >> ndv$$ ; rm -f aftp$$ ;;
+  esac
+  case $cluster in
+  (idris) cat ndv$$
+                if [ `grep -c "$STKsrf2" ndv$$` -eq 0 ] ; then
+                  DAMNED "$yrI, stock: $STKsrf2/AFRndv.$yrI.nc$Z nonexistent"
+                fi
+                tmp=`cat ndv$$ | grep "$STKsrf2" | sed "s:$STKsrf2/::g" |      \
+                     sed "s:.nc$Z:.nc:g"` ;;
+  (linux|nic) cat ndv$$ | grep "AFRndv"
+        if [ `grep -c "AFRndv" ndv$$` -eq 0 ] ; then
+          DAMNED "$yrI, stock: $STKsrf2/AFRndv.$yrI.nc$Z nonexistent"
+        fi
+        tmp=`cat ndv$$ | grep "AFRndv" | awk '{i=NF ; print($i)}' |            \
+             sed "s:.nc$Z:.nc:g"` ;;
+  esac
+  
+  for val in `echo $tmp` ; do
+    ndvdir[$j]=$STKsrf2
+    ndvfil[$j]=`echo $val`
+    j=$(( 10#$j + 1 ))
+  done
+  rm -f ndv$$
+
+fi
+fi
+
+#                                                                               
+# Set paths and variables                                                       
+#---------------------------------------                             
+TITLE2 "Set paths and variables"
+
+DOMdir=$SIMdir/$domain
+NSTdir=$SIMdir/$domain/input/NESTOR
+
+echo "simulation domain directory path: $DOMdir"
+echo "NESTOR            directory path: $NSTdir"
+
+#                                                                               
+# Save your NST.ctr file                                                        
+#---------------------------------------                             
+TITLE2 "Save your NST.ctr file"
+
+  #e.g. NST.ctr.931201o
+NSTctr=NST.ctr.$tyrI$tmoI$td1I$slice
+cp -fp  $0.ctr  $NSTdir/ctrl/$NSTctr
+chmod -x  $NSTdir/ctrl/$NSTctr
+echo "cp: ${0}.ctr -> $NSTdir/ctrl/$NSTctr"
+
+
+#-------------------------------------------------------------------------------
+#  2 - MAR PRE-PROCESSING BATCH COMMAND FILE                                    
+#-------------------------------------------------------------------------------
+TITLE1 "MAR PRE-PROCESSING BATCH COMMAND FILE"
+
+#                                                                               
+# Job command file setup                                                        
+#---------------------------------------                             
+TITLE2 "Job command file setup"
+
+bch="NST_$domain.$tyrI.$tmoI.${td1I}-$td2F"
+  #> NST_EUt.93.12.01-31.cmd*          batch command file                       
+  #  NST_EUt.93.12.01-31.eole.eo       batch command file standard error/output 
+  #  NST_EUt.93.12.01-31.eole.???      batch command file state (in $WRKmsg)    
+  #  NST_EUt.93.12.01-31/              simulation directory on the batch machine
+
+job="$domain$tyrI$tmoI$td1I$slice"    #job name in the batch queue (EUt931201a)
+
+if [ -f $NSTdir/run/$bch.cmd ] ; then
+  echo "job command file $bch.cmd existing. Delete it?"
+  rm -f $NSTdir/run/$bch.cmd
+fi
+touch $NSTdir/run/$bch.cmd
+echo "job command file : $NSTdir/run/$bch.cmd"
+
+CMDfile=$NSTdir/run/$bch.cmd
+
+                                            
+#                                                                               
+# Job command file content                                                      
+#---------------------------------------                             
+TITLE2 "Job command file content"
+
+#                                                                               
+# Batch specifications                                                          
+#---------------------------------------                             
+
+case $cluster in
+(nic)
+  BCH "#!/bin/bash"
+  BCH "#job name"  
+  BCH "#$ -N $job" 
+  BCH "#environment"   
+  BCH "#$ -V"
+  BCH "#memory request"
+  BCH "#$ -l h_vmem=400M"
+  BCH "#$ -l h_cpu=01:00:00"
+  BCH "#standard error/output streams"
+  BCH "#$ -j y"
+  BCH "#$ -o $WRKmsg/$bch.eo" 
+  BCH "#$ -cwd" ;;
+(idris)
+  BCH "#!/bin/ksh"
+  BCH "#QSUB -lt 3600"
+  BCH "#QSUB -ro"
+  BCH "#QSUB -eo"
+  BCH "#QSUB -o $WRKmsg/$bch.eo"
+  BCH "#QSUB -lM 2000Mb"
+  BCH "#QSUB -r $job" ;;
+(linux)
+  BCH "#!/bin/bash"
+  BCH "#PBS -N $job"
+  BCH "#PBS -o $WRKmsg/$bch.eo" 
+  BCH "#PBS -j eo" ;;
+(foehn|froggy)
+  BCH "#!/bin/bash"
+  BCH "#OAR -n $job"
+  BCH "#OAR --stdout $WRKmsg/$bch.o"
+  BCH "#OAR --stderr $WRKmsg/$bch.e"
+  BCH "#OAR --project regional-climate"
+  BCH "#OAR -l walltime=20:00:00" ;;
+(nasa)
+  BCH "#!/bin/bash"
+  BCH "#SBATCH --job-name=$job"
+  BCH "#SBATCH --mail-user=$Email"
+  BCH "#SBATCH --mail-type=FAIL"
+  BCH "#SBATCH -t 2:00:00"
+  BCH "#SBATCH -N 1"
+  BCH "#SBATCH -A S1001"  
+  BCH "#SBATCH --ntasks-per-node=1"
+  BCH "#SBATCH --output=$WRKmsg/$bch-%N-%j.eo" ;;
+esac
+
+BCH ". $MARbin/INI.ctr"
+BCH ". $MARbin/FUNCTIONS"
+
+echo "job command file < batch specifications"
+
+#                                                                               
+# Initialisation                                                                
+#---------------------------------------                             
+BCHt   "Initialisation"
+
+#variables definition                   
+
+BCHc "variables definition"
+
+BCH "host=\`hostname -s\`"
+
+#job messages file in $WRKmsg           
+
+BCHc "job messages file in $WRKmsg"
+
+BCH "msg=$WRKmsg/$bch.\$host"
+BCH "rm -f $WRKmsg/$bch.\${host%\${host#???}}*"
+BCH "touch \$msg"
+
+echo "job command file < initialisation"
+
+#                                                                               
+# Job informations                                                              
+#---------------------------------------                             
+BCHt   "Job informations"
+
+BCH "[ -d $WRKdir ] || mkdir $WRKdir"
+BCH "echo \"$job $WRKdir\" >> $WRKmsg/locations"
+BCH
+BCH "echo \"Begin time    : $td1I/$tmoI/$yrI\""
+BCH "echo \"End   time    : $td2F/$tmoF/$yrF\""
+BCH "echo \"Domain        : $domain ($DOMdir)\""
+BCH "echo"
+BCH "echo \"Date          : \`date\`\""
+BCH "echo \"Host          : \$host\""
+BCH "echo \"Work directory: $WRKdir\""
+BCH "echo \"Messages in   : $WRKmsg\""
+
+echo "job command file < job informations"
+
+#                                                                               
+# Work directory
+#---------------------------------------                             
+BCHt   "Work directory"
+
+#work directory ($WRKdir/$bch)          
+
+BCHc "work directory ($WRKdir/$bch)"
+
+BCH "[ ! -d $WRKdir ] && mkdir $WRKdir"
+BCH
+BCH "if [ ! -d $WRKdir/$bch ] ; then"
+BCH "  mkdir   $WRKdir/$bch"
+BCH "else"
+BCH "  rm -rf  $WRKdir/$bch"
+BCH "  mkdir   $WRKdir/$bch"
+BCH "  echo ; echo \"rm: existing $WRKdir/$bch\""
+BCH "fi"
+BCH "if [ -d $WRKdir/$bch.CRASH ] ; then"
+BCH "  rm -rf  $WRKdir/$bch.CRASH"
+BCH "  echo ; echo \"rm: existing $WRKdir/$bch.CRASH\""
+BCH "fi"
+BCH
+WRKdix=$WRKdir      #to keep it intact and use it in case of CRASH
+WRKdir=$WRKdir/$bch
+BCH
+BCH "cp -rfp  $NSTdir/*  $WRKdir/"
+BCH "rm -rf  $WRKdir/run  $WRKdir/ctrl"
+BCH
+BCH "[ ! -d $WRKdir/input ] && mkdir $WRKdir/input"
+BCH "[ -d $WRKdir/output ] && rm -rf $WRKdir/output"
+BCH "mkdir $WRKdir/output"
+BCH "[ ! -d $WRKdir/core ] && mkdir $WRKdir/core"
+
+#NESTOR executable                      
+
+BCHc "NESTOR executable"
+
+BCH "if [ ! -f $WRKdir/NESTOR.exe ] ; then"
+BCH "  DAMNED \"executable nonexistent [$WRKdir/NESTOR.exe]\" \"fil\""
+BCH "  END_EXIT"
+BCH "fi"
+
+BCH "chmod +x  $WRKdir/NESTOR.exe"
+
+echo "job command file < support tests"
+
+#                                                                               
+# input data files                                                              
+#---------------------------------------                             
+BCHt   "input data files"
+
+#names of LSC data files are stored in ${fil[.]} and ${fily[.]}
+
+[ $nstin1 = "y" ] && Z=".gz" || Z=""
+
+#LSC files                              
+BCHc "LSC files"
+
+i=0
+
+BCH "[ -f $WRKdir/LSCfil.dat ] && rm -f $WRKdir/LSCfil.dat"
+for LSCfil in ${fil[@]} ; do
+  BCH
+  BCH "  #$LSCfil"
+  BCH
+  BCH "echo ; echo \" > $LSCfil\" ; echo"
+  BCH "cd $WRKdir/input"
+  BCH "smget \"$STKlsc/${fily[$i]}\" \"$LSCfil$Z\" \"$WRKdir/input\""
+  [ $nstin1 = "y" ] && BCH "ucX \"$WRKdir/input\" \"$LSCfil\" \"$Z\""
+  BCH "echo \"input/$LSCfil\" >> $WRKdir/LSCfil.dat"
+  i=$(( $i + 1 ))
+done
+BCH
+
+echo "job command file < large-scale input data files"
+
+#surface files                          
+BCHc "surface files"
+
+  #ETOPO
+
+if [ $n12 = "T" ] ; then
+
+  SRFfil=ETOPO
+  BCH
+  BCH "  #$SRFfil"
+  BCH
+  BCH "echo ; echo \"  > $SRFfil\" ; echo"
+  BCH "mkdir $WRKdir/input/$SRFfil 2>/dev/null"
+  BCH "cd $WRKdir/input/$SRFfil"
+  fil=etopo.nc
+  BCH "smget \"$STKsrf/$SRFfil\" \"$fil$Z\" \"$WRKdir/input/$SRFfil\""
+  [ $nstin1 = "y" ] && BCH "ucX \"$WRKdir/input/$SRFfil\" \"$fil\" \"$Z\""
+
+  SRFfil=ETOPO1
+  BCH
+  BCH "  #$SRFfil"
+  BCH
+  BCH "echo ; echo \"  > $SRFfil\" ; echo"
+  BCH "mkdir $WRKdir/input/$SRFfil 2>/dev/null"
+  BCH "cd $WRKdir/input/$SRFfil"
+  fil=etopo1.nc
+  BCH "smget \"$STKsrf/$SRFfil\" \"$fil$Z\" \"$WRKdir/input/$SRFfil\""
+ [ $nstin1 = "y" ] && BCH "ucX \"$WRKdir/input/$SRFfil\" \"$fil\" \"$Z\""
+
+  SRFfil=ICEmask
+  BCH
+  BCH "  #$SRFfil"
+  BCH
+  BCH "echo ; echo \"  > $SRFfil\" ; echo"
+  BCH "mkdir $WRKdir/input/$SRFfil 2>/dev/null"
+  BCH "cd $WRKdir/input/$SRFfil"
+  fil=ICEmask.nc
+  BCH "smget \"$STKsrf/$SRFfil\" \"$fil$Z\" \"$WRKdir/input/$SRFfil\""
+  [ $nstin1 = "y" ] && BCH "ucX \"$WRKdir/input/$SRFfil\" \"$fil\" \"$Z\""
+
+fi
+
+  #GTOPO
+
+if   [ $n13 = "T" ] ; then  #GTOPO as usual
+
+  SRFfil=GTOPO
+  BCH
+  BCH "  #$SRFfil"
+  BCH
+  BCH "echo ; echo \"  > $SRFfil\" ; echo"
+  BCH "mkdir $WRKdir/input/$SRFfil 2>/dev/null"
+  BCH "cd $WRKdir/input/$SRFfil"
+  fil=File_List
+  BCH "smget \"$STKsrf/$SRFfil\" \"$fil$Z\" \"$WRKdir/input/$SRFfil\""
+  [ $nstin1 = "y" ] && BCH "ucX \"$WRKdir/input/$SRFfil\" \"$fil\" \"$Z\""
+
+elif [ $n13 = "A" ] ; then  #special topography for Antarctica
+
+  SRFfil=NSIDC_.DEM
+
+  BCH
+  BCH "  #$SRFfil"
+  BCH
+  BCH "echo ; echo \"  > $SRFfil\" ; echo"
+  BCH "mkdir $WRKdir/input/$SRFfil 2>/dev/null"
+  BCH "cd $WRKdir/input/$SRFfil"
+  fil=ramp1kmdem_wgsosu_v2.bin
+  BCH "smget \"$STKsrf/$SRFfil\" \"$fil\" \"$WRKdir/input/$SRFfil\""
+  #[ $nstin1 = "y" ] && BCH "ucX \"$WRKdir/input/$SRFfil\" \"$fil\" \"$Z\""
+
+elif [ $n13 = "a" ] ; then  #special topography for Antarctica
+
+  SRFfil=NSIDC_.DEM
+  BCH
+  BCH "  #$SRFfil"
+  BCH
+  BCH "echo ; echo \"  > $SRFfil\" ; echo"
+  BCH "mkdir $WRKdir/input/$SRFfil 2>/dev/null"
+  BCH "cd $WRKdir/input/$SRFfil"
+  fil=ramp1kmdem_wgsosu_v2.$ant
+  BCH "smget \"$STKsrf/$SRFfil\" \"$fil\" \"$WRKdir/input/$SRFfil\""
+  #[ $nstin1 = "y" ] && BCH "ucX \"$WRKdir/input/$SRFfil\" \"$fil\" \"$Z\""
+  BCH "mv $WRKdir/input/$SRFfil/$fil $WRKdir/input/$SRFfil/ramp1kmdem_wgsosu_v2.dat"
+
+fi
+
+  #FAO
+
+  SRFfil=FAO
+  BCH
+  BCH "  #$SRFfil"
+  BCH
+  BCH "echo ; echo \"  > $SRFfil\" ; echo"
+  BCH "mkdir $WRKdir/input/$SRFfil 2>/dev/null"
+  BCH "cd $WRKdir/input/$SRFfil"
+  fil=FAO_SOIL.nc
+  BCH "smget \"$STKsrf/$SRFfil\" \"$fil$Z\" \"$WRKdir/input/$SRFfil\""
+  [ $nstin1 = "y" ] && BCH "ucX \"$WRKdir/input/$SRFfil\" \"$fil\" \"$Z\""
+  fil=TEXUNIT.ASC
+  BCH "smget \"$STKsrf/$SRFfil\" \"$fil$Z\" \"$WRKdir/input/$SRFfil\""
+  [ $nstin1 = "y" ] && BCH "ucX \"$WRKdir/input/$SRFfil\" \"$fil\" \"$Z\""
+  fil=SOILPARAMETER.nc
+  BCH "smget \"$STKsrf/$SRFfil\" \"$fil$Z\" \"$WRKdir/input/$SRFfil\""
+  [ $nstin1 = "y" ] && BCH "ucX \"$WRKdir/input/$SRFfil\" \"$fil\" \"$Z\""
+  fil=AFRmax-alb.nc
+  BCH "smget \"$STKsrf/$SRFfil\" \"$fil$Z\" \"$WRKdir/input/$SRFfil\""
+  [ $nstin1 = "y" ] && BCH "ucX \"$WRKdir/input/$SRFfil\" \"$fil\" \"$Z\""
+
+  #SOIL
+
+  SRFfil=SOIL
+  BCH
+  BCH "  #$SRFfil"
+  BCH
+  BCH "echo ; echo \"  > $SRFfil\" ; echo"
+  BCH "mkdir $WRKdir/input/$SRFfil 2>/dev/null"
+  BCH "cd $WRKdir/input/$SRFfil"
+  fil=GSWP-SOIL.nc
+  BCH "smget \"$STKsrf/$SRFfil\" \"$fil$Z\" \"$WRKdir/input/$SRFfil\""
+  [ $nstin1 = "y" ] && BCH "ucX \"$WRKdir/input/$SRFfil\" \"$fil\" \"$Z\""
+
+  #CORINE
+
+  if [ $n23 = "T" ] ; then
+
+  SRFfil=CORINE
+  BCH
+  BCH "  #$SRFfil"
+  BCH
+  BCH "echo ; echo \"  > $SRFfil\" ; echo"
+  BCH "mkdir $WRKdir/input/$SRFfil 2>/dev/null"
+  BCH "cd $WRKdir/input/$SRFfil"
+  fil=CORINE250.nc
+  BCH "smget \"$STKsrf/$SRFfil\" \"$fil$Z\" \"$WRKdir/input/$SRFfil\""
+  [ $nstin1 = "y" ] && BCH "ucX \"$WRKdir/input/$SRFfil\" \"$fil\" \"$Z\""
+  fil=CORINEtab.txt
+  BCH "smget \"$STKsrf/$SRFfil\" \"$fil$Z\" \"$WRKdir/input/$SRFfil\""
+  [ $nstin1 = "y" ] && BCH "ucX \"$WRKdir/input/$SRFfil\" \"$fil\" \"$Z\""  
+
+  fi
+
+  #SST
+
+  if [ $n30 = "T" ] ; then
+
+  SRFfil=SST
+  BCH
+  BCH "  #$SRFfil"
+  BCH
+  BCH "echo ; echo \"  > $SRFfil\" ; echo"
+  BCH "mkdir $WRKdir/input/$SRFfil 2>/dev/null"
+  BCH "cd $WRKdir/input/$SRFfil"
+  fil=sst_1981-2001_hanning.nc
+# BCH "smget \"$STKsrf/$SRFfil\" \"$fil$Z\" \"$WRKdir/input/$SRFfil\""
+# [ $nstin1 = "y" ] && BCH "ucX \"$WRKdir/input/$SRFfil\" \"$fil\" \"$Z\""
+
+  fi
+
+if [[ $WLDreg != "GR" && $WLDreg != "AN" ]] ; then  
+
+  #VEGE
+  SRFfil=VEGE
+  BCH
+  BCH "  #$SRFfil"
+  BCH
+  BCH "echo ; echo \"  > $SRFfil\" ; echo"
+  BCH "mkdir $WRKdir/input/$SRFfil 2>/dev/null"
+  BCH "cd $WRKdir/input/$SRFfil"
+  fil=AFRveg_IGBP.nc
+  BCH "smget \"$STKsrf/$SRFfil\" \"$fil$Z\" \"$WRKdir/input/$SRFfil\""
+  [ $nstin1 = "y" ] && BCH "ucX \"$WRKdir/input/$SRFfil\" \"$fil\" \"$Z\""
+  fil=BELveg_IRM.asc
+  BCH "smget \"$STKsrf/$SRFfil\" \"$fil$Z\" \"$WRKdir/input/$SRFfil\""
+  [ $nstin1 = "y" ] && BCH "ucX \"$WRKdir/input/$SRFfil\" \"$fil\" \"$Z\""
+  fil=EURveg_IGBP.nc
+  BCH "smget \"$STKsrf/$SRFfil\" \"$fil$Z\" \"$WRKdir/input/$SRFfil\""
+  [ $nstin1 = "y" ] && BCH "ucX \"$WRKdir/input/$SRFfil\" \"$fil\" \"$Z\""
+
+fi
+
+  #NDVI (NDVI01 or NDVI08)
+
+if   [ $n25 = "T" ] & [ $WLDreg = "EU" ] ; then
+
+  BCH
+  BCH "  #NDVI01"
+  BCH
+  BCH "echo ; echo \"NDVI01\" ; echo"
+  BCH "mkdir $WRKdir/input/NDVI01 2>/dev/null"
+  BCH "cd    $WRKdir/input/NDVI01"
+
+                           tmoI2=$(( ${tmoI#0} + 1 ))
+  [ ${tmoI2#0} -le  9 ] && tmoI2="0$tmoI2" 
+  [ ${tmoI2#0} -gt 12 ] && tmoI2="01" 
+
+  BCH "smget \"$STKsrf/NDVI01\" \"EURndv.nc$Z\" \"$WRKdir/input/NDVI01\""
+  [ $nstin1 = "y" ] && BCH "ucX  \"$WRKdir/input/NDVI01\" \"EURndv.nc\" \"$Z\""
+
+  BCH "smget \"$STKsrf/NDVI01\" \"EURn$tmoI.nc$Z\" \"$WRKdir/input/NDVI01\""
+  [ $nstin1 = "y" ] && BCH "ucX  \"$WRKdir/input/NDVI01\" \"EURn$tmoI.nc\" \"$Z\""
+ 
+  BCH "smget \"$STKsrf/NDVI01\" \"EURn$tmoI2.nc$Z\" \"$WRKdir/input/NDVI01\""
+  [ $nstin1 = "y" ] && BCH "ucX  \"$WRKdir/input/NDVI01\" \"EURn$tmoI2.nc\" \"$Z\""
+
+  BCH "smget \"$STKsrf/NDVI01\" \"AFRndv.nc$Z\" \"$WRKdir/input/NDVI01\""
+  [ $nstin1 = "y" ] && BCH "ucX  \"$WRKdir/input/NDVI01\" \"AFRndv.nc\" \"$Z\""
+
+  BCH "smget \"$STKsrf/NDVI01\" \"AFRn$tmoI2.nc$Z\" \"$WRKdir/input/NDVI01\""
+  [ $nstin1 = "y" ] && BCH "ucX  \"$WRKdir/input/NDVI01\" \"AFRn$tmoI2.nc\" \"$Z\""
+
+  BCH "smget \"$STKsrf/NDVI01\" \"AFRn$tmoI.nc$Z\" \"$WRKdir/input/NDVI01\""
+  [ $nstin1 = "y" ] && BCH "ucX  \"$WRKdir/input/NDVI01\" \"AFRn$tmoI.nc\" \"$Z\""
+
+
+elif [ $n26 = "T" ] ; then
+  
+  [ $nstin1 = "y" ] && Z=".gz" || Z=""
+  BCH
+  BCH "  #NDVI08"
+  BCH
+  BCH "echo ; echo \"  > NDVI08\" ; echo"
+  BCH "mkdir $WRKdir/input/NDVI08 2>/dev/null"
+  for avhfil in ${avhrrpf[*]} ; do
+    BCH "cd $WRKdir/input/NDVI08"
+    BCH "smget \"$STKsrf2\" \"$avhfil$Z\" \"$WRKdir/input/NDVI08\""
+    [ $nstin1 = "y" ] && BCH "ucX  \"$WRKdir/input/NDVI08\" \"$avhfil\" \"$Z\""
+  done
+  i=1
+  while [ $i -le ${#ndvfil[@]} ] ; do
+    BCH "cd $WRKdir/input/NDVI08"
+    BCH "smget \"${ndvdir[$i]}\" \"${ndvfil[$i]}$Z\" \"$WRKdir/input/NDVI08\""
+    [ $nstin1 = "y" ] && BCH "ucX  \"$WRKdir/input/NDVI08\" \"${ndvfil[$i]}\" \"$Z\""
+    i=$((i+1))
+  done
+
+fi
+
+echo "job command file < surface input data files"
+
+#NSTing.ctr file                        
+BCHc "NSTing.ctr file"
+
+BCH "echo \"*************************************************************************\" > $WRKdir/NSTing.ctr"
+BCH "echo \"*****************  CONTROL FILE FOR NESTOR PROGRAM  *********************\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"*************************************************************************\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"                                                                         \" >> $WRKdir/NSTing.ctr"
+BCH "echo \"-------------------------------------------------------------------------\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"------------------------| NESTOR CONFIGURATION                          |\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"$n01\${blank[24-${#n01}]}| - 1 = Nesting field computation               |\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"                        | - 2 = Rain disagregation                      |\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"                        | - 3 = Wind gust estimate                      |\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"-------------------------------------------------------------------------\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"${domain}                     | Label experience                           (a3)\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"------------------------+-----------------------------------+------------\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"output/                                                     | output path\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"------------------------+-----------------------------------+------------\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"$n03\${blank[24-${#n03}]}| Large-scale model, e.g. E15, E40, MAR, TVM (a3)\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"------------------------|------------------------------------------------\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"$n04\${blank[24-${#n04}]}| Nested model, e.g. MAR, TVM, EUR           (a3)\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"------------------------|------------------------------------------------\" >> $WRKdir/NSTing.ctr"
+if [ $WLDreg != "WA" ] ; then
+BCH "echo \"${LSCreg}                     | Region .e.g. GRD,ANT,EUR,GRD               (a3)\" >> $WRKdir/NSTing.ctr"
+else
+BCH "echo \"AFW                     | Region .e.g. GRD,ANT,EUR,GRD               (a3)\" >> $WRKdir/NSTing.ctr"
+fi
+BCH "echo \"------------------------|------------------------------------------------\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"$yrI,$tmoI,$td1I,00           | DATE of RUN START                 (YY,mm,dd,hh)\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"\${blank[10-${#len}]}${len},00           | RUN LENGHT                              (dd,hh)\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"           $n05           | Time interval between two forcings         (hh)\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"------------------------|------------------------------------------------\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"------------------------| OUTPUT :                                       \" >> $WRKdir/NSTing.ctr"
+BCH "echo \"$n06\${blank[24-${#n06}]}| - initial/forcing files  (*.DAT)          (F/T)\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"$n07\${blank[24-${#n07}]}| - ASCII format init./for. files (MAR only)(F/T)\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"$n08\${blank[24-${#n08}]}| - graphic check file     (NST*.nc)        (F/T)\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"------------------------|------------------------------------------------\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"$n09\${blank[24-${#n09}]}| Spherical     coordinates for LSC grid    (F/T)\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"------------------------|------------------------------------------------\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"$n10\${blank[24-${#n10}]}| Horizontal interpol. type    (1=bilin, 3=bicub)\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"------------------------|------------------------------------------------\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"$n11\${blank[24-${#n11}]}| Vertical   interpol. type    (1=linear,3=cubic)\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"------------------------|------------------------------------------------\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"------------------------| TOPOGRAPHY SOURCE :                            \" >> $WRKdir/NSTing.ctr"
+BCH "echo \"$n12\${blank[24-${#n12}]}| - ETOPO data set  (resol. : 5 minutes  )  (F/T)\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"$n13\${blank[24-${#n13}]}| - GTOPO data set  (resol. : 30 secondes)  (F/T)\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"------------------------|------------------------------------------------\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"------------------------| TOPOGRAPHY TREATMENT :                        |\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"$n14\${blank[24-${#n14}]}| - border of constant topography at boundaries |\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"$n15\${blank[24-${#n15}]}| - imposed LSC topography in the const. border |\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"$n16\${blank[24-${#n16}]}| - imposed LSC topography in the whole domain  |\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"$n17\${blank[24-${#n17}]}| - zero topography        in the const. border |\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"$n18\${blank[24-${#n18}]}| - filtering of topography                     |\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"------------------------|------------------------------------------------\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"------------------------| CORRECTION APPLIED TO METEO. FIELDS :          \" >> $WRKdir/NSTing.ctr"
+BCH "echo \"$n19\${blank[24-${#n19}]}| - 600-hPa geopotential height             (F/T)\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"$n20\${blank[24-${#n20}]}| - mixed surface layer                     (F/T)\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"------------------------|------------------------------------------------\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"------------------------| ROUGHNESS LENGHT :                             \" >> $WRKdir/NSTing.ctr"
+BCH "echo \"$n21\${blank[24-${#n21}]}| Computed from land use datasets           (T/F)\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"------------------------|------------------------------------------------\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"------------------------| VEGETATION COVER :                             \" >> $WRKdir/NSTing.ctr"
+BCH "echo \"$n22\${blank[24-${#n22}]}| - Global land cover (IGBP)                (T/F)\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"$n23\${blank[24-${#n23}]}| - European land cover (Corine) : Europe   (T/F)\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"$n24\${blank[24-${#n24}]}| - Vegetation of Belgium (V.d.Auwera-IRM)  (T/F)\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"------------------------|------------------------------------------------\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"------------------------| VEGETATION FRACTION (select max. one option) : \" >> $WRKdir/NSTing.ctr"
+BCH "echo \"$n25\${blank[24-${#n25}]}| - Correction with NDVI index (res. 1 km)  (T/F)\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"$n26\${blank[24-${#n26}]}| - Correction with NDVI index (res. 8 km)  (T/F)\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"------------------------|------------------------------------------------\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"------------------------| SOIL MODEL :                                   \" >> $WRKdir/NSTing.ctr"
+BCH "echo \"$n27\${blank[24-${#n27}]}| De Ridder and Schayes (1997) soil model   (T/F)\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"$n28\${blank[24-${#n28}]}| Imposed soil wetness in all layers (0 to 100 %)\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"$n29\${blank[24-${#n29}]}| Soil wetness from ECMWF fields            (T/F)\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"------------------------|------------------------------------------------\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"------------------------| SEA SURFACE TEMPERATURE :                      \" >> $WRKdir/NSTing.ctr" 
+BCH "echo \"$n30\${blank[24-${#n30}]}| Imposed Reynolds sea surface temperature  (T/F)\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"------------------------|------------------------------------------------\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"------------------------| SOUNDING                                       \" >> $WRKdir/NSTing.ctr"
+BCH "echo \"$n31\${blank[24-${#n31}]}| Simplified initialisation with sounding   (T/F)\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"------------------------+---------------------------------+--------------\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"/input                                                    | Sounding file\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"------------------------+---------------------------------+--------------\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"------------------------| CLOUD MICROPHYSICS                             \" >> $WRKdir/NSTing.ctr"
+BCH "echo \"$n33\${blank[24-${#n33}]}| Include cloud content in spec. humidity   (T/F)\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"------------------------|------------------------------------------------\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"------------------------| RAIN DISAGGREGATION                            \" >> $WRKdir/NSTing.ctr"
+BCH "echo \"$n34\${blank[24-${#n34}]}| 0 = no rain disaggregation (only model fields) \" >> $WRKdir/NSTing.ctr"
+BCH "echo \"                        | 1 = disaggregation model of Sinclair (1994)    \" >> $WRKdir/NSTing.ctr"
+BCH "echo \"                        | 2 = disaggregation model of Alpert   (1989)    \" >> $WRKdir/NSTing.ctr"
+BCH "echo \"-------------------------------------------------------------------------\" >> $WRKdir/NSTing.ctr"
+BCH "echo \"------------------------| WIND GUST ESTIMATE METHOD                      \" >> $WRKdir/NSTing.ctr"
+BCH "echo \"$n35\${blank[24-${#n35}]}| 1 = Standard WGE method of Brasseur (2001)     \" >> $WRKdir/NSTing.ctr"
+BCH "echo \"                        | 2 = BRN method (without TKE) of Ramel (2001)   \" >> $WRKdir/NSTing.ctr"
+BCH "echo \"                        | 3 = Ratio method                               \" >> $WRKdir/NSTing.ctr"
+BCH "echo \"-------------------------------------------------------------------------\" >> $WRKdir/NSTing.ctr"
+BCH
+BCH "cp -fp  $WRKdir/NSTing.ctr  $NSTdir/NSTing.ctr"
+
+echo "job command file < NSTing.ctr file"
+
+#                                                                               
+# Stock initialisation                                                          
+#---------------------------------------                             
+BCHt   "Stock initialisation"
+
+  #creating needed directory on stock     
+
+case $cluster in
+(nic|linux|nasa)
+if [ $sftp = "y" ] ; then
+BCH "$gateway $ssh $optionssh $ustock@$stock mkdir -p $STKmar/$domain/input/NESTOR/$yrI"
+BCH "$gateway $ssh $optionssh $ustock@$stock mkdir -p $STKmar/$domain/input/NESTOR/$yrI"
+else
+BCH "echo \"Info: \'550 Create directory operation failed\' <= directory existing\""
+BCH "aftp mkdir $STKmar"
+BCH "aftp mkdir $STKmar/$domain"
+BCH "aftp mkdir $STKmar/$domain/input"
+BCH "aftp mkdir $STKmar/$domain/input/NESTOR"
+BCH "aftp mkdir $STKmar/$domain/input/NESTOR/$yrI"
+BCH "aftp mkdir $STKmar/$domain/crash"
+fi 
+;;
+(foehn|froggy)
+BCH "imkdir -p $STKmar/$domain/input/NESTOR/$yrI 2>/dev/null"
+BCH "imkdir -p $STKmar/$domain/crash 2>/dev/null"
+;;
+#(idris) #(idris) #automatically created by mfput is nonexistent.
+#BCH "[ ! -d $STKmar/$domain                   ] && mkdir $STKmar/$domain"
+#BCH "[ ! -d $STKmar/$domain/input             ] && mkdir $STKmar/$domain/input"
+#BCH "[ ! -d $STKmar/$domain/input/NESTOR      ] && mkdir $STKmar/$domain/input/NESTOR"
+#BCH "[ ! -d $STKmar/$domain/input/NESTOR/$yrI ] && mkdir $STKmar/$domain/input/NESTOR/$yrI"
+#BCH "[ ! -d $STKmar/$domain/crash             ] && mkdir $STKmar/$domain/crash" ;;
+esac
+
+STKcrash=$STKmar/$domain/crash
+STKnestor=$STKmar/$domain/input/NESTOR/$yrI
+
+echo "job command file < stock initialisation"
+
+#                                                                               
+# NESTOR launch                                                                 
+#---------------------------------------                             
+BCHt   "NESTOR launch"
+
+BCH "cd $WRKdir"
+case $cluster in
+(linux|nasa) BCH "nice -n19 time  ./NESTOR.exe > $WRKdir/NESTOR.log" ;;
+(idris) BCH "timex ./NESTOR.exe > $WRKdir/NESTOR.log" ;;
+(nic)   BCH "time  ./NESTOR.exe > $WRKdir/NESTOR.log" ;;
+(foehn|froggy) BCH "time  ./NESTOR.exe > $WRKdir/NESTOR.log" ;;
+esac
+BCH "echo"
+BCH "cp -fp  $WRKdir/NESTOR.log  $NSTdir/run/$job.log"
+BCH
+BCH "if [ -f $WRKdir/NST.OK ] ; then"
+BCH "  echo \"NESTOR run: OK (\`date\`)\""
+BCH "else"
+BCH "  DAMNED \"NESTOR error (NST.OK nonexistent) (\`date\`)\" \"exe\""
+BCH "  mv -f  $WRKdir  $WRKdix/$bch.\$host.CRASH"
+BCH "  tarX  \"$WRKdix\"  \"$bch.\$host.CRASH\""
+BCH "  [ \$? -ne 0 ] && END_EXIT"
+BCH "  rm -rf  $WRKdix/$bch.\$host.CRASH"
+if [ $nstou1 = "y" ] ; then
+BCH "  gzipX  \"$WRKdix\"  \"$bch.\$host.CRASH.tar\""
+BCH "  [ \$? -ne 0 ] && END_EXIT"
+BCH "  Z=.gz"
+else
+BCH "  Z=\"\""
+fi
+BCH "  smput \"$WRKdix\"  \"$bch.\$host.CRASH.tar\$Z\"  \"$STKcrash\""
+BCH "  [ \$? -eq 0 ] && rm -f  $WRKdix/$bch.\$host.CRASH.tar\$Z"
+BCH "  END_EXIT"
+BCH "fi"
+
+echo "job command file < NESTOR launch"
+
+#                                                                               
+# Backup: NESTOR output files                                                   
+#---------------------------------------                             
+BCHt   "Backup: NESTOR output files"
+
+#output directory content
+
+BCHc "output directory content"
+
+BCH "echo ; echo \"> output directory content\" ; echo"
+
+BCH "ls -l $WRKdir/output"
+
+#save output files if required
+
+if [ $marin1 = "y" ] ; then
+
+  #MARdcl
+
+MARdcl=MARdcl_$domain.$yrI.$tmoI.$td1I.inc
+
+BCHc "MAR*.inc* ($MARdcl)"
+
+BCH "echo ; echo \"> MAR*.inc* ($MARdcl)\" ; echo"
+BCH "tarX  \"$WRKdir/output\"  \"MAR*.inc*\"  \"$MARdcl\""
+BCH "if [ \$? -eq 0 ] ; then"
+BCH "  MARdcl=$MARdcl.tar"
+BCH "  smput  \"$WRKdir/output\"  \"\$MARdcl\"  \"$STKnestor\""
+BCH "  [ \$? -eq 0 ] && rm -f  $WRKdir/output/\$MARdcl  MAR*.inc*"
+BCH "fi"
+
+  #MARlbc
+
+MARlbc=MARlbc_$domain.$yrI.$tmoI.${td1I}-$td2F.DAT
+
+BCHc "MARlbc ($MARlbc)"
+
+BCH "echo ; echo \"> MARlbc ($MARlbc)\" ; echo"
+BCH "mv  $WRKdir/output/MARlbc.DAT  $WRKdir/output/$MARlbc"
+BCH "MARlbc=$MARlbc"
+if [ $nstou1 = "y" ] ; then
+BCH "  gzipX  \"$WRKdir/output\"  \"$MARlbc\""
+BCH "  if [ \$? -eq 0 ] ; then"
+BCH "    MARlbc=$MARlbc.gz"
+BCH "    smput  \"$WRKdir/output\"  \"\$MARlbc\"  \"$STKnestor\""
+BCH "    [ \$? -eq 0 ] && rm -f $WRKdir/output/\$MARlbc"
+BCH "  fi"
+else
+BCH "  smput  \"$WRKdir/output\"  \"\$MARlbc\"  \"$STKnestor\""
+BCH "  [ \$? -eq 0 ] && rm -f $WRKdir/output/\$MARlbc"
+fi
+
+BCH "#If any trouble here, MARlbc*.DAT is likely to become part of MARini*DAT"
+BCH "echo \"If any trouble here, MARlbc*.DAT is likely to become part of MARini*DAT\""
+
+  #MARglf
+
+MARglf=MARglf_$domain.$yrI.$tmoI.${td1I}-$td2F.DAT
+
+BCHc "MARglf ($MARglf)"
+
+BCH "echo ; echo \"> MARglf ($MARglf)\" ; echo"
+BCH "mv  $WRKdir/output/MARglf.DAT  $WRKdir/output/$MARglf"
+BCH "MARglf=$MARglf"
+if [ $nstou1 = "y" ] ; then
+BCH "  gzipX  \"$WRKdir/output\"  \"$MARglf\""
+BCH "  if [ \$? -eq 0 ] ; then"
+BCH "    MARglf=$MARglf.gz"
+BCH "    smput  \"$WRKdir/output\"  \"\$MARglf\"  \"$STKnestor\""
+BCH "    [ \$? -eq 0 ] && rm -f $WRKdir/output/\$MARglf"
+BCH "  fi"
+else
+BCH "  smput  \"$WRKdir/output\"  \"\$MARglf\"  \"$STKnestor\""
+BCH "  [ \$? -eq 0 ] && rm -f $WRKdir/output/\$MARglf"
+fi
+
+BCH "#If any trouble here, MARglf*.DAT is likely to become part of MARini*DAT"
+BCH "echo \"If any trouble here, MARglf*.DAT is likely to become part of MARini*DAT\""
+
+  #MARsic
+
+MARsic=MARsic_$domain.$yrI.$tmoI.${td1I}-$td2F.DAT
+
+BCHc "MARsic ($MARsic)"
+
+BCH "echo ; echo \"> MARsic ($MARsic)\" ; echo"
+BCH "mv  $WRKdir/output/MARsic.DAT  $WRKdir/output/$MARsic"
+BCH "MARsic=$MARsic"
+if [ $nstou1 = "y" ] ; then
+BCH "  gzipX  \"$WRKdir/output\"  \"$MARsic\""
+BCH "  if [ \$? -eq 0 ] ; then"
+BCH "    MARsic=$MARsic.gz"
+BCH "    smput  \"$WRKdir/output\"  \"\$MARsic\"  \"$STKnestor\""
+BCH "    [ \$? -eq 0 ] && rm -f $WRKdir/output/\$MARsic"
+BCH "  fi"
+else
+BCH "  smput  \"$WRKdir/output\"  \"\$MARsic\"  \"$STKnestor\""
+BCH "  [ \$? -eq 0 ] && rm -f $WRKdir/output/\$MARsic"
+fi
+
+BCH "#If any trouble here, MARsic*.DAT is likely to become part of MARini*DAT"
+BCH "echo \"If any trouble here, MARsic*.DAT is likely to become part of MARini*\
+DAT\""
+
+  #MARubc                                                                        
+
+MARubc=MARubc_$domain.$yrI.$tmoI.${td1I}-$td2F.DAT
+
+BCHc "MARubc ($MARubc)"
+
+BCH "echo ; echo \"> MARubc ($MARubc)\" ; echo"
+BCH "mv  $WRKdir/output/MARubc.DAT  $WRKdir/output/$MARubc"
+BCH "MARubc=$MARubc"
+if [ $nstou1 = "y" ] ; then
+BCH "  gzipX  \"$WRKdir/output\"  \"$MARubc\""
+BCH "  if [ \$? -eq 0 ] ; then"
+BCH "    MARubc=$MARubc.gz"
+BCH "    smput  \"$WRKdir/output\"  \"\$MARubc\"  \"$STKnestor\""
+BCH "    [ \$? -eq 0 ] && rm -f $WRKdir/output/\$MARubc"
+BCH "  fi"
+else
+BCH "  smput  \"$WRKdir/output\"  \"\$MARubc\"  \"$STKnestor\""
+BCH "  [ \$? -eq 0 ] && rm -f $WRKdir/output/\$MARubc"
+fi
+
+BCH "#If any trouble here, MARubc*.DAT is likely to become part of MARini*DAT"
+BCH "echo \"If any trouble here, MARubc*.DAT is likely to become part of MARini*\
+DAT\""
+
+  #MARdom
+
+MARdom=MARdom_$domain.$yrI.$tmoI.$td1I.dat
+
+BCHc "MARdom ($MARdom)"
+
+BCH "echo ; echo \"> MARdom ($MARdom)\" ; echo"
+BCH "mv  $WRKdir/output/MARdom.dat  $WRKdir/output/$MARdom"
+BCH "MARdom=$MARdom"
+if [ $nstou1 = "y" ] ; then
+BCH "  gzipX  \"$WRKdir/output\"  \"$MARdom\""
+BCH "  if [ \$? -eq 0 ] ; then"
+BCH "    MARdom=$MARdom.gz"
+BCH "    smput  \"$WRKdir/output\"  \"\$MARdom\"  \"$STKnestor\""
+BCH "    [ \$? -eq 0 ] && rm -f $WRKdir/output/\$MARdom"
+BCH "  fi"
+else
+BCH "  smput  \"$WRKdir/output\"  \"\$MARdom\"  \"$STKnestor\""
+BCH "  [ \$? -eq 0 ] && rm -f $WRKdir/output/\$MARdom"
+fi
+
+  #MARini
+
+MARini=MARini_$domain.$yrI.$tmoI.$td1I.DAT
+
+BCHc "MARini ($MARini)"
+
+BCH "echo ; echo \"> MARini ($MARini)\" ; echo"
+BCH "tarX  \"$WRKdir/output\"  \"MAR*.DAT\"  \"$MARini\""
+BCH "if [ \$? -eq 0 ] ; then"
+#BCH " rm -f MAR*.DAT" #commented: could delete a MARlbc*DAT previously unsaved and the $MARini too!
+BCH "  MARini=$MARini.tar"
+if [ $nstou1 = "y" ] ; then
+BCH "  gzipX  \"$WRKdir/output\"  \"\$MARini\""
+BCH "  if [ \$? -eq 0 ] ; then"
+BCH "    MARini=\$MARini.gz"
+BCH "    smput  \"$WRKdir/output\"  \"\$MARini\"  \"$STKnestor\""
+BCH "    [ \$? -eq 0 ] && rm -f $WRKdir/output/\$MARini"
+BCH "  fi"
+else
+BCH "  smput  \"$WRKdir/output\"  \"\$MARini\"  \"$STKnestor\""
+BCH "  [ \$? -eq 0 ] && rm -f $WRKdir/output/\$MARini"
+fi
+BCH "fi"
+
+  #NSTcdf
+
+if [ $n08 = "T" ] ; then
+  
+NSTcdf=NST.$domain.$yrI.$tmoI.${td1I}-$td2F.nc
+
+BCHc "NSTcdf ($NSTcdf)"
+
+BCH "echo ; echo \"> NSTcdf ($NSTcdf)\" ; echo"
+BCH "mv  $WRKdir/output/NST.$yrI.$tmoI.${td1I}*nc  $WRKdir/output/$NSTcdf"
+BCH "NSTcdf=$NSTcdf"
+if [ $nstou1 = "y" ] ; then
+BCH "gzipX \"$WRKdir/output\"  \"$NSTcdf\""
+BCH "if [ \$? -eq 0 ] ; then"
+BCH "  NSTcdf=$NSTcdf.gz"
+BCH "  smput  \"$WRKdir/output\"  \"\$NSTcdf\"  \"$STKnestor\""
+BCH "  [ \$? -eq 0 ] && rm -f $WRKdir/output/\$NSTcdf"
+BCH "fi"
+else
+BCH "smput  \"$WRKdir/output\"  \"\$NSTcdf\"  \"$STKnestor\""
+BCH "[ \$? -eq 0 ] && rm -f $WRKdir/output/\$NSTcdf"
+fi
+
+fi  #n08
+
+echo "job command file < backup: NESTOR output files"
+
+else
+
+  BCH "echo \"no output files saved\""
+  echo "job command file < no backup: NESTOR output files"
+
+fi  #marin1
+
+#                                                                               
+# Final job check                                                               
+#---------------------------------------                             
+BCHt   "Final job check"
+
+BCH "  echo \"$job job executed successfully on $cluster\" ; echo"
+
+[ $cluster != "idris" ] && BCH "  rm -rf $WRKdir"
+
+BCH "  mv  \$msg  \$msg.ok &>/dev/null"
+
+#BCH "  rm -f  $NSTdir/run/$bch.cmd"
+
+echo "job command file < final job check"
+
+BCH
+BCH "echo \`date\`"
+BCH "echo"
+
+BCH
+BCH "END_EXIT"
+BCH
+
+#                                                                               
+# Job command file executable                                                   
+#---------------------------------------                             
+TITLE2 "job command file executable"
+
+chmod +x  $NSTdir/run/$bch.cmd
+
+echo "job command file executable:"
+echo " "
+echo "$NSTdir/run/$bch.cmd"
+
+#-------------------------------------------------------------------------------
+#  X - END OF THE WORLD :o)                                                     
+#-------------------------------------------------------------------------------
+TITLE1 "END OF THE WORLD :o)"
+echo

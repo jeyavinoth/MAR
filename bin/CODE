@@ -1,0 +1,1433 @@
+#!/bin/bash                                                                     
+#
+# E. Vanvyve / X. Fettweis - 08.10.2007
+#                                                                               
+# NAME                                                                          
+#                                                                               
+#   CODE - prepare and compile MAR                                              
+#                                                                               
+# SYNOPSIS                                                                      
+#                                                                               
+#   CODE name                                                                   
+#                                                                               
+# OPERANDS                                                                      
+#                                                                               
+#   name    the name of the MAR run                                             
+#           = 1 letter (3rd one of the domain name) + 2 numbers (e.g. a+01=a01) 
+#                                                                               
+# DESCRIPTION                                                                   
+#                                                                               
+#   The CODE script prepares and compiles MAR for a new simulation inside a     
+#   domain.                                                                     
+#                                                                               
+
+#INI.ctr                                 
+
+tmp=`ls ${0%/*}/INI.ctr | wc -l`  #to avoid search in subdirectories
+[ $tmp -ne 1 ] && echo '@&?%! '"fatal error: ${0%/*}/INI.ctr nonexistent" && exit
+
+control=${0%/*}/INI.ctr
+. $control
+
+#FUNCTIONS
+
+. FUNCTIONS
+
+#-------------------------------------------------------------------------------
+# HELP                                                                          
+#-------------------------------------------------------------------------------
+
+[ ${#1} -eq 0 ] && head -22 $0 && exit
+
+
+#-------------------------------------------------------------------------------
+#  SCRIPT INITIALISATION                                                        
+#-------------------------------------------------------------------------------
+
+#                                                                               
+# User's parameters                                                             
+#---------------------------------------                                       
+
+#INI.ctr                                 
+
+tmp=`ls ${0%/*}/INI.ctr | wc -l`  #to avoid search in subdirectories
+[ $tmp -ne 1 ] && echo '@&?%! '"fatal error: ${0%/*}/INI.ctr non-existent" && exit
+
+control=${0%/*}/INI.ctr
+. $control
+
+#$0.ctr                                 
+
+tmp=`ls $0.ctr | wc -l`  #to avoid search in subdirectories
+[ $tmp -eq 0 ] && echo '@&?%! '"fatal error: $0.ctr non-existent" && exit
+
+control=$0.ctr
+. $control
+
+#                                                                               
+# System initialisation                                                         
+#---------------------------------------                                       
+
+#main script parameters values          
+
+case $cluster in (nic|linux|nasa|idris|foehn|froggy) echo ;;
+                 (*) echo '@&?%! '"script not done for $cluster" && exit ;;
+esac
+
+#-------------------------------------------------------------------------------
+#  TITLE                                                                        
+#-------------------------------------------------------------------------------
+TITLE0 "MAR PREPARATION AND COMPILATION "
+
+
+#-------------------------------------------------------------------------------
+#  1 - INITIALISATION                                                           
+#-------------------------------------------------------------------------------
+TITLE1 "INITIALISATION"
+
+#                                                                               
+# Your parameters (CODE.ctr)                                                    
+#---------------------------------------                                       
+TITLE2 "Your parameters (CODE.ctr)"
+
+  # WLDreg   = world region (GR, AN, EU, BE, ...)             
+  # domain   = domain of simulation (EUa, BEm, ...)       
+  # run name = name of the run in domain/ (a01, m16, ...) 
+
+#script argument                        
+
+usage="\nusage: CODE name"
+
+[ ${#1} -eq 0 ] && DAMNED "argument missing [run name]\n$usage"
+arg1=$1 
+
+#CODE.ctr arguments: user's dir. paths  
+
+MARbin=${MARbin%/}
+SIMdir=${SIMdir%/}
+MARdir=${MARdir%/}
+STKmar=${STKmar%/} ; [ ${#STKmar} -eq 0 ] && STKmar="."
+
+#CODE.ctr arguments: y/n values         
+
+case $fsplit in ([!yn]) DAMNED "parameter error: fsplit [$fsplit]" ;; esac
+
+#world region                           
+
+case $WLDreg in
+  (EU) tmp="Europe" ;;
+  (WA) tmp="West Africa" ;;
+  (AN) tmp="Antarctica" ;;
+  (GR) tmp="Greenland" ;;
+  (BE) tmp="Belgium" ;;
+  (*)  tmp="extraterrestrial land..." ;;
+esac
+
+#user's parameters                      
+
+echo "general world region  : $WLDreg ($tmp)"
+echo
+echo "SIMdir directory      : $SIMdir"
+echo "MARdir directory      : $MARsrc"
+echo "MAR directory on stock: $STKmar"
+echo
+[ $fsplit = "n" ] && tmp="no fsplitted" || tmp="fsplitted"
+echo "compile MAR code      : $tmp"
+echo
+echo "cluster               : $cluster"
+echo "stock address         : $stock"
+echo
+
+echo "<return>" ; read
+
+#                                                                               
+# Check the run name                                                            
+#---------------------------------------                                       
+TITLE2 "Check the run name"
+
+runnam=$arg1
+
+#length                                 
+
+[ ${#runnam} -ne 3 ] && DAMNED "format error: run name (a3) [$runnam]"
+
+echo "run name: $runnam"
+echo "associated domain: $WLDreg${runnam%??}"
+echo "associated world region: $WLDreg"
+
+#name denomination                    
+
+  #domain
+k=0
+for i in `ls $SIMdir | awk '{ print($0) }'` ; do
+  j=${i#$WLDreg}
+  [ ${#j} -eq 1 -a ${runnam%??} = $j ] && k=$(($k+1))
+done
+[ $k -ne 1 ] && DAMNED "format error: run name [$runnam]. Associated domain $WLDreg${runnam%??} ($WLDreg+${runnam%??}) non-existent."
+
+#                                                                               
+# Set paths                                                                     
+#---------------------------------------                                       
+TITLE2 "Set paths"
+
+domain=$WLDreg${runnam%??}  #e.g. EUa=EU+a
+DOMdir=$SIMdir/$domain
+CTRLdir="$DOMdir/ctrl/$runnam"
+CODEdir="$DOMdir/code/$runnam"
+RUNdir="$DOMdir/run/$runnam"
+
+echo "simulation domain directory path: $DOMdir"
+echo "simulation ctrl   directory path: $DOMdir/ctrl/$runnam"
+echo "simulation code   directory path: $DOMdir/code/$runnam"
+echo "simulation run    directory path: $DOMdir/run/$runnam"
+
+#                                                                               
+# Make directories                                                              
+#---------------------------------------                                       
+TITLE2 "Make directories"
+
+#must have been created by the INI script!
+
+[ -d $DOMdir ]        || DAMNED "$DOMdir/ non-existent"
+[ -d $DOMdir/ctrl ]   || DAMNED "$DOMdir/ctrl/ non-existent"
+[ -d $DOMdir/code ]   || DAMNED "$DOMdir/code/ non-existent"
+[ -d $DOMdir/input ]  || DAMNED "$DOMdir/input/ non-existent"
+[ -d $DOMdir/run ]    || DAMNED "$DOMdir/run/ non-existent"
+[ -d $DOMdir/input/NESTOR ] || DAMNED "$DOMdir/input/NESTOR/ non-existent"
+
+#check if any pre-existing run directory (ctrl/xxx, code/xxx, run/xxx)
+
+if [ -d $CTRLdir ] ; then
+  CHOICE "$CTRLdir existing. Erase it?"
+  case $answer in
+  (y) rm -rf $CTRLdir ;
+      echo "mkdir: $CTRLdir" ; mkdir $CTRLdir ;;
+  (n) echo "rm: $CTRLdir kept" ;;
+  esac
+else
+  echo "mkdir: $CTRLdir" ; mkdir $CTRLdir
+fi
+if [ -d $CODEdir ] ; then
+  CHOICE "$CODEdir existing. Erase it?"
+  case $answer in
+  (y) rm -rf $CODEdir ;
+      echo "mkdir: $CODEdir" ; mkdir $CODEdir ;;
+  (n) echo "rm: $CODEdir kept" ;;
+  esac
+else
+  echo "mkdir: $CODEdir" ; mkdir $CODEdir
+fi
+if [ -d $RUNdir ] ; then
+  CHOICE "$RUNdir existing. Erase it?"
+  case $answer in
+  (y) rm -rf $RUNdir ;
+      echo "mkdir: $RUNdir" ; mkdir $RUNdir ;;
+  (n) echo "rm: $RUNdir kept" ;;
+  esac
+else
+  echo "mkdir: $RUNdir" ; mkdir $RUNdir
+fi
+
+#                                                                               
+# Save your *.ctr file                                                          
+#---------------------------------------                                       
+TITLE2 "Save your *.ctr file"
+
+echo "cp: $0.ctr -> $CTRLdir/CODE.ctr.$runnam"
+cp -f  $0.ctr  $CTRLdir/CODE.ctr.$runnam
+
+
+#------------------------------------------------------------------------------
+#  2 - MAR PRE-PROCESSING OPTIONS
+#-------------------------------------------------------------------------------
+TITLE1 "MAR PRE-PROCESSING OPTIONS"
+
+MAR_pp_inp=$CTRLdir/MAR_pp.inp.$runnam
+INP () { echo $1 >> $MAR_pp_inp ; }
+
+rm -f  $MAR_pp_inp
+touch  $MAR_pp_inp
+
+#
+# Checking MAR options                                                         
+#---------------------------------------
+TITLE2 "Checking MAR options"
+
+#OTHERS                                                                         
+
+#vectorisation                         
+
+case $VE in (T) echo "vectorisation" ;;
+            (F) echo "no vectorisation" ;;
+            (*) DAMNED "error value: vectorisation [VE=$VE]" ;;
+esac
+if [ $VE = "T" -a $RT = "M" ] ; then
+  DAMNED "error value: vectorisation/radiative transfer scheme [RT=$RT]"
+fi
+if [ $VE = "F" -a $cluster = "idris" ] ; then
+  DAMNED "error value: vectorisation is compulsory on the IDRIS cluster"
+fi
+case $VC in (T) echo "small vectorisation" ;;
+            (F) echo "no small vectorisation" ;;
+            (*) DAMNED "error value: small vectorisation [VC=$VC]" ;;
+esac
+
+##double precision                       
+#
+#case $DP in (T) echo "double precision" ;;
+#            (F) echo "simple precision" ;;
+#            (*) DAMNED "error value: computation [DP=$DP]" ;;
+#esac
+
+#LSC forcing                            
+
+case $LS in (ERA15|ERA40) echo "$LS LSC forcing" ;;
+            (*)           DAMNED "error value: LSC forcing [LS=$LS]" ;;
+esac
+
+#dynamics
+
+case $NH in (T) echo "basic non-hydrostatic option" ;;
+            (F) echo "hydrostatic option" ;;
+            (*) DAMNED "error value: non-hydrostatic [NH=$NH]" ;;
+esac
+
+if [ $NH = "T" ] ; then
+  case $NHs in (T) echo "slope non-hydrostatic option" ;;
+               (F) echo "no slope non-hydrostatic option" ;;
+               (*) DAMNED "error value: non-hydrostatic option [NHs=$NHs]";;
+  esac
+  case $NHh in (T) echo "heat non-hydrostatic option" ;;
+               (F) echo "no heat non-hydrostatic option" ;;
+               (*) DAMNED "error value: non-hydrostatic option [NHh=$NHh]";;
+  esac
+elif [ $NH = "F" ] ; then
+  [ $NHs != "F" ] && DAMNED "error value: NHs must be set to F [NHs=$NHs]"
+  [ $NHh != "F" ] && DAMNED "error value: NHh must be set to F [NHh=$NHh]"
+fi
+
+case $DD in (T) echo "divergence damper option" ;;
+            (F) echo "no divergence damper option" ;;
+            (*) DAMNED "error value: divergence damper option [DD=$DD]";;
+esac
+
+#advection scheme                                                              
+
+case $AD in (L) echo "leap-frog back advection scheme" ;;
+            (-) echo "cubic spline   advection scheme" ;;
+esac
+
+#convective adjustment scheme                                                  
+
+case $CA in (-) echo "no convective adjustment" ;;
+            (b) echo "convective adjustment MNH of Peter Bechtold" ;;
+            (E) echo "convective adjustment of Kerry Emmanuel" ;;
+            (*) DAMNED "value error: convective adjustement [CA=$CA]" ;;
+esac
+
+#radiative transfer scheme                                                     
+
+case $RT in (M) echo "UCL/ASTR radiative transfer scheme" ;;
+            (L) echo "LMDZ radiative transfer scheme" ;;
+            (E) echo "ECMWF radiative transfer scheme" ;;
+            (*) DAMNED "value error: radiative transfer scheme [RT=$RT]" ;;
+esac
+
+#turbulence transfer scheme                                                    
+
+case $TU in (L) echo "K-l Therry & Lacarrere turbulence closure" ;;
+            (e) echo "K-e Duynkerke turbulence closure" ;;
+            (*) DAMNED "value error: turbulence closure [TU=$TU]" ;;
+esac
+
+#water mass balance
+
+case $WB in (T) echo "water mass balance" ;;
+            (F) echo "no water mass balance" ;;
+            (*) DAMNED "value error: water mass balance [WB=$WB]" ;;
+esac
+
+#surface-vegetation-atmosphere transfer scheme                                 
+
+case $SV in (T) echo "SISVAT SVAT scheme" ;;
+            (F) echo "Deardorff force restore" ;;
+            (*) DAMNED "value error: surface model [SV=$SV]" ;;
+esac
+
+if [ $SV = "F" ] ; then
+  [ $SN = "T" ] && DAMNED "error value: SN must be set to F [SN=$SN]"
+  [ $IB = "T" ] && DAMNED "error value: IB must be set to F [IB=$IB]"
+  [ $BS = "T" ] && DAMNED "error value: BS must be set to F [BS=$BS]"
+  [ $ES = "T" ] && DAMNED "error value: ES must be set to F [ES=$ES]"
+  [ $AR = "T" ] && DAMNED "error value: AR must be set to F [AR=$AR]"
+  [ $OR = "T" ] && DAMNED "error value: OR must be set to F [OR=$OR]"
+  [ $SR = "T" ] && DAMNED "error value: SR must be set to F [SR=$SR]"
+  [ $PO = "T" ] && DAMNED "error value: PO must be set to F [PO=$PO]"
+fi
+
+case $SN in (T) echo "snow model" ;;
+            (F) echo "no snow model" ;;
+            (*) DAMNED "value error: snow model [SN=$SN]" ;;
+esac
+case $IB in (T) echo "ice-sheet surface mass balance" ;;
+            (F) echo "no ice-sheet surface mass balance" ;;
+            (*) DAMNED "value error: ice-sheet surface mass balance [IB=$IB]" ;;
+esac
+case $BS in (T) echo "blowing snow model" ;;
+            (F) echo "no blowing snow model" ;;
+            (*) DAMNED "value error: blowing snow [BS=$BS]" ;;
+esac
+case $ES in (T) echo "evolutive sastrugi model" ;;
+            (F) echo "no evolutive sastrugi model" ;;
+            (*) DAMNED "value error: evolutive sastrugi model [ES=$ES]" ;;
+esac
+case $AR in (T) echo "Andreas * Roughness model" ;;
+            (F) echo "no Andreas * Roughness model" ;;
+            (*) DAMNED "value error: Andreas * Roughness model [AR=$AR]" ;;
+esac
+case $OR in (T) echo "orography roughness set-up" ;;
+            (F) echo "no orography roughness set-up" ;;
+            (*) DAMNED "value error: orography roughness set-up [OR=$OR]" ;;
+esac
+case $SR in (T) echo "scalar roughness model" ;;
+            (F) echo "no scalar roughness model" ;;
+            (*) DAMNED "value error: scalar roughness model [SR=$SR]" ;;
+esac
+case $PO in (T) echo "polynya - sea-ice model" ;;
+            (F) echo "no polynya - sea-ice model" ;;
+            (*) DAMNED "value error: polynya - sea-ice [PO=$PO]" ;;
+esac
+
+#
+# Creation of MAR_pp.inp
+#---------------------------------------
+TITLE2 "Creation of MAR_pp.inp"
+
+#
+# DYNAMICS
+#.......................................
+
+# (non) hydrostatic
+
+if [ $NH = "T" ] ; then
+
+  echo "dynamics: non hydrostatic"
+
+  INP "#NH  |   DYNAMICS: Non-Hydrost. Code  (adapted from Laprise, 1992)"
+
+  if [ $NHs = "T" ] ; then
+  INP "#nh  |   DYNAMICS: Non-Hydrost. Code  (Slope            Contribut)"
+  fi
+ 
+  if [ $NHh = "T" ] ; then
+  INP "#DH  |   DYNAMICS: Non-Hydrost. Code  (Diabatic Heating Contribut)"
+  fi
+
+else
+
+  echo "dynamics: hydrostatic"
+
+fi
+
+# other
+
+  echo "dynamics: other"
+
+  if [ $DD = "T" ] ; then
+  INP "#DD  |   DYNAMICS: Mass Divergence Damper (Skamarock &Klemp, 1992)"
+  fi
+
+  INP "#DA  |   DYNAMICS: Lateral BC: Davies (1976) BC on Wind // Lat.B. "
+ #INP "#OB  |   DYNAMICS: Lateral BC: Zero Gradient                      "
+
+  INP "#VN  |   DYNAMICS: Variable Number of Leap-Frog Loops (Fast Waves)"
+  if [ $VC = "T" ] ; then
+  INP "#vN  |   PORTABILITY: Vectorization enhanced: Leap Frog Counter   "
+  fi
+
+ #INP "#GE  |   DYNAMICS: Geographic Coordinates may be red in MARdom.dat"
+ #(no more in MAR_pp_dat.f)
+
+# advection scheme
+
+if [ $AD = "L" ] ; then
+
+  echo "dynamics: advection scheme = 4th centered leap-frog backward"
+
+  INP "#RF  |   DYNAMICS: Top BC: Rayleight Friction in the Top Sponge   "
+
+else
+
+  echo "dynamics: advection scheme = 3th upstream time forward"
+
+  INP "#UW  |   DYNAMICS: Advect.  3rd Accurate in Space Upstream Scheme "
+  #if [ ${x} = "U ] ; then
+  # Vert.Adv. Scheme  1st upstream time forward
+  #  INP "#UP  |   DYNAMICS: Vertical 1st Accurate in Space Upstream Scheme "
+  #else 
+  INP "#VC  |   Explicit Cloud MICROPHYSICS: Water Conservation is Forced"
+  #fi
+
+fi
+
+#
+# EXPLICIT CLOUD MICROPHYSICS
+#.......................................
+
+  echo "physics: explicit cloud microphysics"
+
+  INP "#HY  |   Explicit Cloud MICROPHYSICS              may be turned ON"
+  INP "#HV  |   Explicit Cloud MICROPHYSICS: Air Loading by Hydrometeors "
+  INP "#HW  |   Explicit Cloud MICROPHYSICS: Full OUTPUT of Hydrometeors "
+
+  if [ $WB = "T" ] ; then
+  INP "#WB  |   Explicit Cloud MICROPHYSICS: Water Conservation Controled"
+    if [ $cluster != "idris" ] ; then
+  INP "#WW  |   Explicit Cloud MICROPHYSICS: Water Conservation Summary  "
+    fi
+  fi
+
+  if [ $VC = "T" ] ; then
+  INP "#vH  |   PORTABILITY: Vectorization enhanced: Hydrological Cycle  "
+  fi
+  if [ $VE = "F" ] ; then
+  INP "#hy  |   Explicit Cloud MICROPHYSICS: NO Vectorisation Optmization"
+  fi
+  INP "#NV  |   PORTABILITY: Vectorization  is     turned  OFF           "
+
+#
+# TURBULENCE
+#.......................................
+
+if [ $TU = "L" ] ; then
+
+  echo "turbulence: K-l Therry and Lacarrere"
+
+  INP "#Kl  |   TURBULENCE: K-l: Therry & Lacarrere         (1983) BLM 25"
+
+elif [ $TU = "e" ] ; then
+
+  echo "turbulence: K-e Duynkerke"
+
+  INP "#TA  |   TURBULENCE: K-e: Dissipation + Advect.Horiz.TKE Transport"
+  INP "#TD  |   TURBULENCE: K-e: Dissipation + Diffus.Horiz.TKE Transport"
+ #INP "#HR  |   TURBULENCE: K-e: Huang & Raman              (1991) BLM 55"
+ #INP "#FE  |   FILTERING: Digital Filtering of TKE                      "
+  INP "#KA  |   TURBULENCE: T.K.E. & e(T.K.E.) Filter along the vertical "
+  
+  if [ $WLDreg = "GR" ] ; then
+  INP "#KC  |   TURBULENCE: T.K.E.(mz1):= T.K.E.(mz)                     "
+  INP "#GL  |   SNOW Model: Greenland simulation                         "
+  INP "#TZ  |   Z0 (Momentum) (typical value in polar models)            "
+  INP "#II  |   Search new Ice/Snow Interface                            "
+  INP "#XF  |   For Xavier Fettweis                                      "
+  INP "#up  |   For having more precip along the margin                  "
+  INP "#SU  |   Slush Switch                                             " 
+  fi
+  
+  if [ $WLDreg = "AN" ] ; then
+  INP "#KC  |   TURBULENCE: T.K.E.(mz1):= T.K.E.(mz)                     "
+  INP "#GL  |   SNOW Model: Greenland simulation                         "
+  INP "#TZ  |   Z0 (Momentum) (typical value in polar models)            "
+  INP "#II  |   Search new Ice/Snow Interface                            "
+  INP "#XF  |   For Xavier Fettweis                                      "
+  INP "#AC  |   For Cecile Agosta                                        "
+  INP "#ur  |   For having more precip along the margin                  "
+  INP "#SU  |   Slush Switch                                             " 
+  fi
+  
+  if [ $WLDreg = "EU" ] ; then
+  INP "#XF  |   For Xavier Fettweis                                      " 
+  INP "#ur  |   For having more precip along the margin                  "
+  INP "#EU  |   For Europe                                               "
+  INP "#LN  |   Soil /Vegetation Model: LAI(x,y,t) prescribed(MARglf.DAT)"
+  fi
+fi
+
+  INP "#FI  |   Turbul. Mom. Surface Flux: Implicit numerical Scheme     "
+  INP "#TI  |   Turbul. Heat Surface Flux: Implicit numerical Scheme     "
+  INP "#QE  |   Turbul. Vap. Surface Flux: Explicit numerical Scheme     "
+
+
+  INP "#AA  |   TURBULENCE: SBL  Time Mean (BOX Moving Average)"          
+  INP "#AW  |   TURBULENCE: Wind Time Mean (BOX Moving Average)"          
+  INP "#AH  |   TURBULENCE: Ta-T Time Mean (BOX Moving Average)"
+
+
+  if [ $VC = "T" ] ; then
+  INP "#vK  |   PORTABILITY: Vectorization enhanced: TKE                 "
+  fi
+
+  INP "#ZS  |   SBL: Mom.: Roughn.Length= F(u*) Chamberlain (1983),  Sea "
+  INP "#SY  |   TURBULENCE: Sea Spray Parameterization (Andreas, 199x) ON"
+  INP "#ZM  |   SBL: M/H   Roughn.Length: Box Moving Average (in Time)   "
+  if [ $VC = "T" ] ; then
+  INP "#vZ  |   PORTABILITY: Vectorization enhanced: Av.Roughness Length "
+  fi
+
+#
+# CONVECTIVE ADJUSTMENT
+#.......................................
+
+if [ $CA = "b" ] ; then
+
+  echo "convective adjustment: MNH (Peter Bechtold)"
+
+  INP "#CA  |   CONVECTIVE  Adjustment (general                 Set Up)  "
+ #INP "#cA  |   CONVECTIVE  Adjustment (no Double Counting      Set Up)  "
+  INP "#PB  |   CONVECTIVE  Adjustment (Peter Bechtold     2000 Set Up)  "
+  INP "#TW  |   CONVECTIVE  Adjustment (Peter Bechtold     2000 wa+TKE   "
+  if [ $VE = "F" ] ; then
+  INP "#ca  |   CONVECTIVE  Adjustment (no Vector               Set Up)NV"
+  INP "#pb  |   CONVECTIVE  Adjustment (Peter Bechtold     2000 Set Up)NV"
+  fi
+
+elif [ $CA = "E" ] ; then
+
+  echo "convective adjustment: Kerry Emanuel"
+
+  INP "#KE  |   CONVECTIVE  Adjustment (Emanuel & Zivkovic 1999 Set Up)  "
+  INP "#CA  |   CONVECTIVE  Adjustment (general                 Set Up)  "
+  INP "#ca  |   CONVECTIVE  Adjustment (no Vector               Set Up)NV"
+ #INP "#cA  |   CONVECTIVE  Adjustment (no Double Counting      Set Up)  "
+
+fi
+
+#
+# PHYSICS: RADIATIVE TRANSFER
+#.......................................
+
+if [ $RT = "E" ] ; then
+
+  echo "physics: ECMWF radiative transfer scheme"
+
+  INP "#EE  |   PHYSICS: radCEP: ECMWF   routine    (cfr. JJ Morcrette)  "
+
+elif [ $RT = "L" ] ; then
+
+  echo "physics: LMDZ radiative transfer scheme"
+
+  INP "#LL  |   PHYSICS: radLMD: radlwsw routine    (Laurent LI set up)  "
+  if [ $VE = "F" ] ; then
+  INP "#ll  |   PHYSICS: radLMD: radlwsw routine    (Laurent LI set up)NV"
+  fi
+
+elif [ $RT = "M" ] ; then
+
+  echo "physics: UCL/ASTR radiative transfer scheme"
+
+  INP "#MR  |   PHYSICS: MARrad: Solar/Infrared     (Laurent LI set up)  "
+
+fi
+
+ #INP "#AZ  |   PHYSICS: Solar : Direct Radiation:   Surface Slope Impact"
+ #INP "#MM  |   PHYSICS: Solar : Direct Radiation:   Mountains Mask    ON"
+
+#
+# SURFACE-VEGETATION-ATMOSPHERE TRANSFER
+#.......................................
+
+if [ $SV = "F" ] ; then
+
+  echo "surface processes: force restore + sea-ice set up"
+
+  INP "#FR  |   Surface Model: Force Restore (Deardorff) at least   is ON"
+
+else
+
+  echo "surface processes: SISVAT"
+
+  INP "#sa  |   SISVAT: Stand Alone Set Up is turned OFF                 "
+  INP "#TV  |   Soil /Vegetation Variables                  are used     "
+  if [ $VC = "T" ] ; then
+  INP "#vV  |   PORTABILITY: Vectorization enhanced: SVAT                "
+  fi
+
+  if [ $WLDreg = "WA" ] ; then
+  INP "#SH  |   Soil /Vegetation Model: Hapex-Sahel   Vegetation     DATA"
+  INP "#MT  |   SISVAT: Monin-Obukhov Theory is linearized (Garrat schem)"
+  fi
+
+  if [ $SN = "T" ] ; then
+  
+  echo "surface processes: snow model"
+
+  INP "#SN  |   SNOW Model                               may be turned ON"
+  INP "#CZ  |   SNOW Model: Zenithal Angle Correction  (Segal et al.1991)"    
+
+ #if [ $WLDreg = "AN" ] ; then
+   INP "#SD  |   SNOW Model: Antarct.,Fallen Snow Density (NP must be OFF)"
+ #else
+ # INP "#NP  |   SNOW Model: Fallen Snow Density = f(V)  (Kotlyakov, 1961)"
+ #fi
+
+  if [ $VC = "T" ] ; then
+  INP "#vS  |   PORTABILITY: Vectorization enhanced: Snow    Model       "
+  fi
+  
+  INP "#SI  |   SISVAT: Sea-Ice Fraction calculated from prescribed SST  "
+  INP "#IP  |   SISVAT: Sea-Ice Fraction prescribed from SMMR and SSM/I  "
+  
+  fi
+
+  if [ $WLDreg != "EU" ] ; then
+  INP "#GP  |   Soil /Vegetation Model: LAI, GLF Variations NOT prescrib."
+  fi
+
+fi
+
+if [ $IB = "T" ] ; then
+
+  echo "surface processes: ice-sheet surface mass balance"
+
+  INP "#IB  |   OUTPUT: Ice-Sheet Surface Mass Balance  (on MARphy File )"
+
+fi
+
+if [ $BS = "T" ] ; then
+
+  echo "surface processes: blowing snow model"
+
+  INP "#AE  |   TURBULENCE: Aerosols Erosion / Turbulent Diffusion Coeff."
+                                         # #AE: for ice sheets and deserts
+  INP "#BS  |   Explicit Cloud MICROPHYSICS: Blow. *(Snow)         Model "
+  INP "#MA  |   SNOW Model: Increased polar B* Mobility (Mann et al.2000)"
+  INP "#MB  |   SNOW Model: Erosion Efficiency (Marticorena & Berga.1995)"
+
+  INP "#SS  |   Explicit Cloud MICROPHYSICS: Blow. *(Snow)  Linear Model "
+  INP "#EM  |   Explicit Cloud MICROPHYSICS: de Montmollin Parameterizat."
+  INP "#HS  |   SNOW Model: Hardened SNOW Pack Initialization            "
+
+fi
+
+if [ $ES = "T" ] ; then
+
+  echo "surface processes: evolutive sastrugi model"
+
+  INP "#SZ  |   SBL: Mom.: Roughn.Length= F(u*) Andreas &al.(2004)  Snow "
+  if [ $VC = "T" ] ; then
+  INP "#vR  |   PORTABILITY: Vectorization enhanced: Sastrugi Height     "
+  fi
+
+fi
+
+if [ $AR = "T" ] ; then
+
+  echo "surface processes: Andreas * roughness model"
+
+  INP "#ZA  |   SBL: Mom.: Roughn.Length= F(u*) Andreas &al.(2004), Snow "
+  INP "#ZN  |   SBL: Mom.: Roughn.Length= F(u*) Shao  & Lin (1999), Snow "
+
+fi
+
+if [ $OR = "T" ] ; then
+
+  echo "surface processes: orography roughness model"
+
+  INP "#OR  |   SBL: Orography Roughness included from SL_z0 in MARdom   "
+
+fi
+
+if [ $BS = "T" -o $OR = "T" -o $SR = "T" ] ; then
+
+  INP "#RN  |   SBL: Heat: Roughn.Length= F(u*,z0)  Andreas (1987)  Snow "
+
+fi
+
+
+if [ $PO = "T" ] ; then
+
+  echo "surface processes: polynya model"
+
+  INP "#PO  |   POLYNYA Model                            may be turned ON"
+
+fi
+
+  if [ $WLDreg = "AN" ] ; then
+  echo "projection: Antarctica, oblique Stereographic EPSG 3031"
+  INP "#AP  |   PROJECTION: Antarct., Oblique Stereo. Proj., EPSG 3031   "
+  else
+  echo "projection: polar stereographic"
+  INP "#PP  |   PROJECTION: Polar Stereographic Projection               "
+  fi
+
+#
+# COMPUTATION
+#.......................................
+
+  echo "computation"
+
+  INP "#SB  |   Surface Boundary: modified externally (from Campain Data)"
+  INP "#ID  |   OUTPUT: Main Dependant Variables        (on NetCDF File )"
+  INP "#UL  |   OUTPUT: Time Dimension is UNLIMITED     (on NetCDF File )"
+# INP "#T2  |   OUTPUT: 2, 3, 10-m  Temperature, Wind   (on NetCDF File )"
+
+  #if [ $cluster = "linux" -o $cluster = "idris" ] ; then
+  INP "#HP  |   PORTABILITY: Enables use of own    library on Linux Syst "
+  #fi
+
+  if [ $VC = "T" ] ; then
+  INP "#vL  |   PORTABILITY: Vectorization enhanced                      "
+  fi
+
+  if [ $MP = "T" ] ; then
+  INP "#MP  |   openmp                      "
+  fi
+
+  if [ ${#DP} -gt 0 ] && [ $DP = "T" ] ; then
+  INP "#DP  |   DOUBLE PRECISION            "
+  fi
+
+#
+# OPTIONS (MAR_PP_DAT.F) NOT USED (?)
+#.......................................
+
+  #    #ON    DYNAMICS: Non-Hydrost. Corr. (Weisman &al.1997 MWR p.541)
+  #    #IL    DYNAMICS: PGF: SBL Fraction with  Air = Surface Temperat.
+  #    #CC    DYNAMICS: Constant Coriolis Parameter = fcorDY(imez,jmez)
+  #    #2Z    DYNAMICS: Zonally Averaged Model (latitude = x-direction)
+  #    #HE    DYNAMICS: DNMI   Model Vertical Discretisation(29 Levels)
+  #    #lm    DYNAMICS: LMDZ   Model Vertical Discretisation(11 Levels)
+  #    #PA    DYNAMICS: Parish Model Vertical Discretisation(10 Levels)
+  #    #PV    DYNAMICS: Large Scale Flow conserves Pot. Vort. (2D ONLY)
+  #    #pv    DYNAMICS: Large Scale Flow conserves Pot. Temp. (2D ONLY)
+  #    #ZU    DYNAMICS: Vertical Advection: Cubic Spline (4th accurate)
+  #    #ZO    DYNAMICS: Vertical Advection: Cubic Spline (+Open  SrfBC)
+  #    #UR    DYNAMICS: Vertical Advection/ Upper Radiating Bound.Cond.
+  #    #EP    DYNAMICS: Lateral Sponge included in    Horizontal Filter
+  #    #RB    DYNAMICS: Lateral BC: Carpenter(1982) Sommerfeld Modified
+  #    #da    DYNAMICS: Lateral BC: Davies (1976) BC: K, nu  computed. 
+  #    #FB    DYNAMICS: Lateral BC: Fixed in Horizontal Cubic Spline   
+  #    #OG    DYNAMICS: Lateral BC: (Left) NO Nudging if relaxg=.false.
+  #    #ob    DYNAMICS: Lateral BC: Zero Gradient (Subroutine LBC000)  
+  #    #Di    DYNAMICS: Top BC: Dirichlet  (fixed)                     
+  #    #V+    DYNAMICS: Top BC: Von Neuman (prescrib.non zero-gradient)
+  #    #PS    DYNAMICS: Domain Averaged Pressure Thickness   maintained
+  #    #DY    DYNAMICS: OUTPUT: Components  lowest Level Forces Balance
+  #    _PE    DIFFUSION:(%Grad.)   Slope      USE+ _HH or     (_HH #CR)
+  #    #PE    DIFFUSION:(%Deform.) Slope      USE+ #DF or (#DF #DC #CR)
+  #    _HH    DIFFUSION:(%Grad.)   Vert.Cor.  USE+ _PE                 
+  #    #DF    DIFFUSION:(%Deform.) Vert.Cor.  USE+ #PE or (#PE #DC #CR)
+  #    #DC    DIFFUSION:(%Deform.)            USE+        (#DF #PE #CR)
+  #    #CR    DIFFUSION: Cross Corr.    USE+ (_PE _HH) or (#DF #PE #DC)
+  #    #fe    FILTERING: Digital Filtering of TKE  is   not vectorized 
+  #    #FO    FILTERING: Digital Filtering of TKE (zero gradient at LB)
+  #    #KS    FILTERING: Upper Sponge is solved by horizontal filtering
+  #    #BR    TURBULENCE: 2.5 Level  2nd Order  (Brasseur         1997)
+  #    #FC    CONVECTIVE  Adjustment (Fritsch & Chappell 1980 Set Up)  
+  #    #fc    CONVECTIVE  Adjustment (Fritsch & Chappell 1980 Set Up)NV
+  #    #kf    CONVECTIVE  Adjustment (Kain    & Fritsch  1990 Improvm.)
+  #    #IT    CONVECTIVE  Adjustment (over 5km Adiabatics Starting Pts)
+  #    #AN    CONVECTIVE  Adjustment (Subgrid Mountain Breeze included)
+  #    #WD    CONVECTIVE  Adjustment (Water Detrainment       included)
+  #    #CG    CONVECTIVE  Adjustment (Cloud Glaciation        included)
+  #    #ND    CONVECTIVE  Adjustment (No Precip if LevFSink<LiftCond.L)
+  #    #vT    CONVECTIVE  Adjustment (Virtual Temperature  is computed)
+  #    #ke    CONVECTIVE  Adjustment (Emanuel & Zivkovic 1999 Set Up)NV
+  #    #PD    TURBULENCE: K-e: Original Duynkerke         (1988) JAS 45
+  #    #AV    TURBULENCE: K-e: Buoyancy includes      Aerosol Loading  
+  #    #KI    TURBULENCE: K-e: Kitada                     (1987) BLM 41
+  #    #BH    TURBULENCE: K-e: Kitada (modified)           USE with #KI
+  #    #LE    TURBULENCE: K  : Louis                      (1979) BLM 17
+  #    #De    TURBULENCE: Top BC: Dirichlet (fixed) (ect_TE and eps_TE)
+  #    #WE    TURBULENCE: T.K.E. OUTPUT on File MAR.TKE                
+  #    #TR    PHYSICS: Solarn: Clear Sky, without Underlying Reflection
+  #    #AR    PHYSICS: radLMD: radlwsw routine Interactive Terr.Aerosol
+  #    #WL    PHYSICS: radLMD: radlwsw routine IO (Laurent LI set up)  
+  #    #HM    Explicit Cloud MICROPHYSICS: Hallett-Mossop Ice Multipl. 
+  #    #hm    Explicit Cloud MICROPHYSICS: Hallett-Mossop Ice Mult.  NV
+  #    #LI    Explicit Cloud MICROPHYSICS: Lin et al. (1983) Autoconv. 
+  #    #S0    Explicit Cloud MICROPHYSICS: Blow. *(Byrd)  Linear Model 
+  #    #BV    Explicit Cloud MICROPHYSICS: SBL Loading by all Water Sp.
+  #    #bv    Explicit Cloud MICROPHYSICS: SBL Loading not vectorized  
+  #    #BW    Explicit Cloud MICROPHYSICS: Blowing Snow Statistics     
+  #    #b2    Explicit Cloud MICROPHYSICS: Blowing Snow Statistics (II)
+  #    #EV    Explicit Cloud MICROPHYSICS: Snow Erosion Statistics     
+  #    #EW    Explicit Cloud MICROPHYSICS: OUTPUT (Ener./Mass) (Unit 6)
+  #    #ew    Explicit Cloud MICROPHYSICS: OUTPUT (Ener./Mass) (Unit 6)
+  #    #WH    Explicit Cloud MICROPHYSICS: OUTPUT              (Unit 6)
+  #    #WQ    Explicit Cloud MICROPHYSICS: OUTPUT (Full Verif) (Unit 6)
+  #    #HO    Explicit Cloud MICROPHYSICS: Zero-Gradient Lat.Bound.Cond
+  #    #SA    PHYSICS: MAR Code behaves  as a Stand Alone Surface Model
+  #    #WG    Soil Humidity: Force Restore (Deardorff) may be turned ON
+  #    #GP    Soil /Vegetation Model: LAI, GLF Variations NOT prescrib.
+  #    #SV    Soil /Vegetation Model  (Koen De Ridder) may be turned ON
+  #    #V1    Soil /Vegetation Model: (KD) Vegetat. IGBP Classification
+  #    #V2    Soil /Vegetation Model: (KD) Vegetat. MAR  Classification
+  #    #GA    SISVAT: Soil Humidity Geometric Average at Layer Interfac
+  #    #GF    SISVAT: Gravitational Saturation Front          turned ON
+  #    #GH    SISVAT: Gravitational Saturation Front - Horton turned ON
+  #    #OP    SISVAT: Interactive Sea Surface Temperature     turned ON
+  #    #op    SISVAT: SST Nudging -->   prescribed values     turned ON
+  #    #SR    SISVAT: traces & OUTPUT a variable among called routines 
+  #    #WV    SISVAT: performs OUTPUT on an ASCII File (1 file each pt)
+  #    #ST    EVOLUTIVE SST (Sea Surface Temperature/Swab Ocean)       
+  #    #RE    PRESCRIB. SST (Sea Surface Temperature/Reynolds DATA Set)
+  #    #FD    POLYNYA Model: Sea-Ice Velocity is Free Drift            
+  #    #HA    POLYNYA Model: POLYNYA Surface Energy Balance:  2000 W/m2
+  #    #HI    POLYNYA Model: Hibler (1979) Parameteriz. of Ice Strength
+  #    #CN    POLYNYA Model: Prescription of a Local Avective Time Step
+  #    #AB    SNOW Model: Interactive Albedo f(Grain) (Brun et al.1991)
+  #    #AG    SNOW Model: Snow Aging Col de Porte     (Brun et al.1991)
+  #    #DG    SNOW Model: Snow Settling when Melting | Minimum Density 
+  #    #Se    SNOW Model: Energy Conserv. Verific.: Summary, Output    
+  #    #SE    SNOW Model: Energy Conserv. Verific.: Summary, Output++++
+  #    #SF    SNOW Model: Energy Conserv. Verific.: Forcing, Conduction
+  #    #SW    SNOW Model: Water  Conserv. Verific.: Melting, Freezing  
+  #    #MA    SNOW Model: Increased polar B* Mobility (Mann et al.2000)
+  #    #RU    SNOW Model: Slush:  Internal Run OFF of Water Excess     
+  #    #GK    SNOW Model: Interactive Albedo (Greuell &Konzelmann 1994)
+  #    #SL    SNOW Model: Interactive Albedo (Zuo     &Oerlemans  1995)
+  #    #SM    SNOW Model: Melting/Freezing Diagnostics                 
+  #    #CP    SNOW Model: For Validation on Col de Porte Data          
+  #    #GL    SNOW Model: ETH-Camp & Greenland 3D simulations          
+  #    #BU    SBL: Univ.Funct.:    Businger (1973)  USE with _NO OR #NO
+  #    _NO    SBL: Univ.Funct.: NO Noilhan  (1987)  USE with #BU OR #DR
+  #    #NO    SBL: Univ.Funct.:    Noilhan  (1987)  USE with #BU       
+  #    #DR    SBL: Univ.Funct.:    Dyer     (1974)  USE with _NO       
+  #    #LP    SBL: Blowing Snow Fric. Veloc. Thr. (Li and Pomeroy 1997)
+  #    #DS    SBL: Blowing Snow SBL   Flux   (analytical Form of dq/dz)
+  #    #BI    Blowing Snow Surface Flux: Implicit numerical Scheme     
+  #    #OL    TEST:      Linear Mountain Wave: Specific IO    (2D ONLY)
+  #    #OM    TEST: (Non)Linear Mountain Wave: Specific INPUT (2D ONLY)
+  #    #OS    TEST:      Linear Mountain Wave: Specific IO    (2D ONLY)
+  #    #GR    TEST: LBC: 10C/d  Atmos.Cooling at Model Center (2D ONLY)
+  #    #K1    TEST: LBC: Katab. Atmos.Warming                 (1D ONLY)
+  #    #EK    TEST: EKMAN Spiral: Constant Vertical Turbul. Coefficient
+  #    #CL    TEST: Convective Mixed Layer Test         (HS = 100 W/m2)
+  #    #NL    TEST: Nearly   Neutral Layer Test         (HS =   0 W/m2)
+  #    #TC    TraCer   Advection-Diffusion Equation        is turned ON
+  #    #tc    TraCer   Filtering is  not vectorized                    
+  #    #TO    TraCer   Open Lateral Boundary Conditions on digit.Filter
+  #    #TS    TraCer   Tracer Deposition diagnostic        is turned ON
+  #    #BD    TraCer   Aeolian Erosion  Submodel           is turned ON
+  #    #DV    TraCer   Aeolian Erosion  Submodel: Air Loading by Dust  
+  #    #CH    Chemical Atmospheric         Model       may be turned ON
+  #    #MV    TraCer   Total Mass          Verification    is turned ON
+  #    #CS     INPUT: Constant Sounding during 1st Hours     (2-D ONLY)
+  #    #T2    OUTPUT: 2-m  Air Temperature            (on NetCDF File )
+  #    #MA    OUTPUT: MesoAnimation                   (on NetCDF Files)
+  #    #W6    OUTPUT, Additional: Simulation Statistics      on MAR.log
+  #    #w6    OUTPUT, Additional: Simulation Statistics (NH) on MAR.log
+  #    #WA    OUTPUT, Additional:                            DYNadv_ver
+  #    #WR    OUTPUT, Additional: INIsnd, infra, SRFmod_sno, SRFmod_pol
+  #    #vD    PORTABILITY: Vectorization enhanced: Blowing  Dust .     
+  #    #DP    DOUBLE PRECISION -- DOUBLE PRECISION -- DOUBLE PRECISION 
+  #    #LA    LAPACK LIBRARY is EXTERNAL // LAPACK LIBRARY is EXTERNAL 
+  #    #//    Parallelisation Set Up is activated   (software MPI used)
+  #    #HF    Initialisation of Huang and Lynch 1993   (HAMMING Filter)
+
+  echo 
+  echo "MAR pre-processing options: $MAR_pp_inp"
+
+
+#-------------------------------------------------------------------------------
+#  3 - PREPARATION OF THE COMPILATION                                           
+#-------------------------------------------------------------------------------
+TITLE1 "PREPARATION OF THE COMPILATION"
+
+#                                                                               
+# MAR directory preparation                                                     
+#---------------------------------------                                       
+TITLE2 "MAR directory preparation"
+
+cd $CODEdir        #$DOMdir/code/$runnam
+
+rm -rf  $CODEdir/src
+echo "mkdir: $CODEdir/src"
+      mkdir  $CODEdir/src
+
+echo "cp: $MARsrc/preMAR/* -> $CODEdir/src/"
+  cp -f  $MARsrc/preMAR/*    $CODEdir/src/
+
+echo "cp: $MARsrc/forMAR/forMAR/* -> $CODEdir/src/"
+ cp -rf  $MARsrc/forMAR/forMAR/*    $CODEdir/src/
+
+echo "cp: $MARsrc/libMAR -> $CODEdir/src/"
+  cp -rf  $MARsrc/libMAR    $CODEdir/src/
+
+echo "cp: $MARsrc/version -> $CTRLdir/"
+  cp -f  $MARsrc/version    $CTRLdir/
+
+#                                                                               
+# Pre-processing of MAR                                                         
+#---------------------------------------                                       
+TITLE2 "Pre-processing of MAR"
+
+#stock initialisation                   
+REMARK "stock initialisation"
+
+case $cluster in
+(foehn|froggy)
+imkdir $STKmar/$domain
+imkdir $STKmar/$domain/$runnam
+imkdir $STKmar/$domain/$runnam/code
+;;
+(nic|linux|nasa)
+if [ $sftp = "y" ] ; then
+ $gateway ssh $ustock@$stock mkdir -p $STKmar/$domain/$runnam/code
+else
+ftp -n -v <<EOF
+  open $stock
+  user $USER `tail $MARbin/util/password | awk '{print $1}'`
+  binary
+  prompt
+  mkdir $STKmar
+  mkdir $STKmar/$domain
+  mkdir $STKmar/$domain/$runnam
+  mkdir $STKmar/$domain/$runnam/code
+  close
+EOF
+fi
+[ $? -eq 0 ] && rm -f $CODEdir/ftpexe || DAMNED "directory creation on stock";;
+esac
+echo
+
+#executing MAR_pp
+REMARK "executing MAR_pp"
+
+case $cluster in  #get the NESTOR declaration files: MARdcl_$domain*
+(idris)       tmp=`ls $STKmar/$domain/input/NESTOR | head -1`
+              tmp=${tmp%\/} ; dclyear=${tmp# }
+              tmp=`ls $STKmar/$domain/input/NESTOR/$dclyear |                  \
+                   grep "MARdcl_$domain" | head -1` 
+              tmp=${tmp##*\/} ;;
+(foehn|froggy)tmp=`ils $STKmar/$domain/input/NESTOR | head -2 | tail -1`
+              tmp=${tmp%\/} ; dclyear=${tmp##*\/}
+              tmp=`ils $STKmar/$domain/input/NESTOR/$dclyear |                  \
+                   grep "MARdcl_$domain" | head -1`
+              tmp=${tmp##*\/}  ; tmp=${tmp##*\ } ;;
+(nic|linux|nasa) 
+      ssh $ustock@$stock "cd $STKmar/$domain/input/NESTOR ; ls -1 " > $$
+
+      dclyear=`cat $$ | grep 1 | head -1` ; 
+      dclyear2=`cat $$ | grep 2 | head -1` ; rm -f $$
+      [ ${#dclyear2} -gt 0 ] && dclyear=$dclyear2
+
+      #aftp ls  $STKmar/$domain/input/NESTOR/$dclyear
+
+      ssh $ustock@$stock "cd $STKmar/$domain/input/NESTOR/$dclyear ; ls -1 *" > $$
+      tmp=`cat $$ | grep "MARdcl_$domain" | head -1 | awk '{i=NF ; print($i)}'`
+      rm -f $$ ; tmp=${tmp##*\/} ; dclyear=${dclyear##*\/} 
+      ;;
+esac
+Z=${tmp##*.inc} ; tmp=${tmp%$Z}
+
+smget "$STKmar/$domain/input/NESTOR/$dclyear" "$tmp$Z" "$CODEdir/src"
+[ $cluster != "idris" ] && ucX "$CODEdir/src" "$tmp" "$Z"
+
+echo "cp: $CTRLdir/MAR_pp.inp.$runnam -> $CODEdir/src/MAR_pp.inp"  #MAR_pp.inp
+  cp -f  $CTRLdir/MAR_pp.inp.$runnam    $CODEdir/src/MAR_pp.inp
+
+if [ $VE = "F" ] ; then  #include *.inc_nv < NESTOR
+  echo "vectorisation: F"
+  tmp=`ls $CODEdir/src/*.inc_nv | sed "s:$CODEdir/src/::g"`
+  for inc in $tmp ; do
+    echo "cp: $CODEdir/src/$inc -> $CODEdir/src/${inc%_nv}"
+      cp -f  $CODEdir/src/$inc    $CODEdir/src/${inc%_nv}
+  done
+fi
+
+cd $CODEdir/src/
+case $cluster in
+(idris)                        timex ./MAR_pp ; tmp=$? ;;
+(nic|linux|foehn|froggy|nasa)   time  ./MAR_pp ; tmp=$? ;;
+esac
+[ $tmp != 0 ] && DAMNED "fatal error: MAR_pp"
+
+echo
+
+#                                                                               
+# Code preparation                                                              
+#---------------------------------------                                       
+TITLE2 "Code preparation"
+
+# MAR___.for
+
+if [ $cluster = "idris" ] ; then
+  echo "dd if=$CODEdir/src/MAR___.for of=$CODEdir/src/MAR___.f_lcase conv=lcase"
+fi
+echo "cp: $CODEdir/src/MAR___.for -> $CODEdir/"
+      cp  $CODEdir/src/MAR___.for    $CODEdir/
+      cp  $CODEdir/src/MAR___.FOR    $CODEdir/
+      cp  $CODEdir/src/MAR_pp.inp    $CODEdir/
+
+if [ $fsplit = "y" ] ; then  #   fsplit
+
+  type fsplit &>/dev/null
+  [ $? -ne 0 ] && echo "fsplit no found" && exit
+
+  echo "fsplit: $CODEdir/MAR___.for"
+  cd $CODEdir ; fsplit  $CODEdir/MAR___.for
+else                         #no fsplit
+  cd $CODEdir
+  echo "cp: $CODEdir/MAR___.for -> $CODEdir/MAR___.f"
+    ln -sf           MAR___.for             MAR___.f
+fi
+
+# SBCnew.f, SBCnew.dt, SBCnew.VER
+
+echo "cp: $CODEdir/src/libMAR/SBCnew.GENERIC.f -> $CODEdir/SBCnew.f"
+  cp -f   $CODEdir/src/libMAR/SBCnew.GENERIC.f    $CODEdir/SBCnew.f
+
+echo "   " >> $CODEdir/SBCnew.dt
+echo "   " >> $CODEdir/SBCnew.VER
+
+# CVAmnh.f90
+
+if [ $CA = "b" ] ; then
+  echo "cp: $CODEdir/src/CVAmnh.f90 -> $CODEdir/cvamnh.f90"
+    cp -f   $CODEdir/src/CVAmnh.f90    $CODEdir/cvamnh.f90
+  if [ -f   $CODEdir/src/cvamnh.o ] ; then
+  echo "cp: $CODEdir/src/cvamnh.o -> $CODEdir/"
+    cp -f   $CODEdir/src/cvamnh.o    $CODEdir/
+  fi
+fi
+
+
+# PHYrad_LMD.f / PHYrad_CEP.f
+
+case $RT in
+(L) echo "cp: $CODEdir/src/PHYrad_LMD.f -> $CODEdir/"
+      cp -f   $CODEdir/src/PHYrad_LMD.f    $CODEdir/  ;;
+(E) echo "cp: $CODEdir/src/radCEP.d -> $CODEdir/"
+      cp -rf  $CODEdir/src/radCEP.d    $CODEdir/
+    echo "cp: $CODEdir/src/PHYrad_CEP*.f -> $CODEdir/"
+      cp -rf  $CODEdir/src/PHYrad_CEP*.f    $CODEdir/ ;;
+esac
+
+# include files
+
+  echo "mv: $CODEdir/src/*.inc -> $CODEdir/"
+     mv -f  $CODEdir/src/*.inc    $CODEdir/
+
+echo
+
+# other fortran files
+
+  echo "cp: $CODEdir/src/libMAR/zext.f -> $CODEdir/zext.f"
+    cp -f   $CODEdir/src/libMAR/zext.f    $CODEdir/zext.f
+
+if [ $cluster = "idris" ] ; then
+  echo "cp: $CODEdir/src/libMAR/libUNd_f -> $CODEdir/libUN.f"
+    cp -f   $CODEdir/src/libMAR/libUNd_f    $CODEdir/libUN.f
+else
+  echo "cp: $CODEdir/src/libMAR/libUNs_f -> $CODEdir/libUN.f"
+    cp -f   $CODEdir/src/libMAR/libUNs_f    $CODEdir/libUN.f
+fi
+
+# user files
+
+if [ -d $CODEdir/../../usr ] ; then
+
+  echo "cp: $CODEdir/../../usr/*.inc *.f -> $CODEdir"
+  cp -f $CODEdir/../../usr/*.inc $CODEdir
+  cp -f $CODEdir/../../usr/*.f   $CODEdir 
+fi
+
+if [ -d $CODEdir/../../../../usr ] ; then
+
+  echo "cp: $CODEdir/../../../usr/*.inc *.f -> $CODEdir"
+  cp -f $CODEdir/../../../../usr/*.inc $CODEdir
+  cp -f $CODEdir/../../../../usr/*.f   $CODEdir 
+fi
+
+if [ $BS = "T" ] ; then
+ cd $CODEdir
+ sed "s/klonv\=\  1/klonv\=256/g" MAR_SV.inc > MAR_SV.inc2
+ mv MAR_SV.inc2 MAR_SV.inc
+fi  
+
+if [ $VC = "T" ] && [ $MP = "F" ] ; then
+ cd $CODEdir
+ sed "s/klonv\=\  1/klonv\=256/g" MAR_SV.inc > MAR_SV.inc2
+ mv MAR_SV.inc2 MAR_SV.inc
+fi 
+
+if [ $WLDreg = "AN" ] || [ $WLDreg = "GR" ]  ; then
+ cd $CODEdir
+ sed "s/nsno\=\ \ 25/nsno\=\ \ 30/g" MAR_SV.inc > MAR_SV.inc2
+ mv MAR_SV.inc2 MAR_SV.inc
+ sed "s/nsno\=\ \ 20/nsno\=\ \ 30/g" MAR_SV.inc > MAR_SV.inc2
+ mv MAR_SV.inc2 MAR_SV.inc
+fi
+
+if [ $VE = "T" ] ; then
+ cd $CODEdir
+ sed "s/klon=\ \ \ \ \ \ 1/klon=mx2*my2/g" MARdim.inc > MARdim.inc2
+ mv MARdim.inc2 MARdim.inc
+fi 
+
+#-------------------------------------------------------------------------------
+#  4 - COMPILATION AND LINKING                                                  
+#-------------------------------------------------------------------------------
+TITLE1 "COMPILATION AND LINKING"
+
+#                                                                               
+# Executing COMPILE                                                         
+#---------------------------------------                                       
+TITLE2 "Executing COMPILE"
+
+cd $CODEdir
+cp -f  $MARbin/COMPILE  $CODEdir/
+
+  #general
+sed "s|XXrunnam|$runnam|g"                       COMPILE  > COMPILE1
+sed "s|XXdomain|$domain|g"                       COMPILE1 > COMPILE2
+sed "s|XXCODEdir|$CODEdir|g"                     COMPILE2 > COMPILE1
+sed "s|XXSTKcod|$STKmar/$domain/$runnam/code|g"  COMPILE1 > COMPILE2
+sed "s|\$MARbin|$MARbin|g"                       COMPILE2 > COMPILE1
+sed "s|\$stock|$stock|g"                         COMPILE1 > COMPILE2
+
+  #compilation options
+sed "s|XXfsplit|$fsplit|g"                       COMPILE2 > COMPILE1
+sed "s|XXVE|$VE|g"                               COMPILE1 > COMPILE2
+sed "s|XXRT|$RT|g"                               COMPILE2 > COMPILE1
+sed "s|XXCA|$CA|g"                               COMPILE1 > COMPILE2
+sed "s|XXMP|$MP|g"                               COMPILE2 > COMPILE
+
+
+rm -f  COMPILE1 COMPILE2
+chmod 740 COMPILE
+
+CHOICE "Compile in batch? (advised for idris cluster)"
+
+if [ $answer = "y" ] ; then
+
+  case $cluster in
+  (foehn)
+    echo "#!/bin/bash"                               >  Compile.cmd
+    echo "#OAR -n Compile"                           >> Compile.cmd
+    echo "#OAR --stdout $WRKmsg/Compile.o"           >> Compile.cmd
+    echo "#OAR --stderr $WRKmsg/Compile.e"           >> Compile.cmd
+    echo "cd $CODEdir"                               >> Compile.cmd
+    echo "./COMPILE MAR 3"                           >> Compile.cmd
+    $QSUB Compile.cmd ;;
+  (froggy)
+    echo "#!/bin/bash"                               >  Compile.cmd
+    echo "#OAR -n Compile"                           >> Compile.cmd
+    echo "#OAR --stdout $WRKmsg/Compile.o"           >> Compile.cmd
+    echo "#OAR --stderr $WRKmsg/Compile.e"           >> Compile.cmd
+    echo "cd $CODEdir"                               >> Compile.cmd
+    echo "./COMPILE MAR 3"                           >> Compile.cmd
+    $QSUB --project regional-climate Compile.cmd ;;
+  (linux)
+    echo "#!/bin/bash"                               >  Compile.cmd
+    echo "#PBS -N Compile"                           >> Compile.cmd
+    echo "#PBS -o $WRKmsg/Compile.eo"                >> Compile.cmd
+    echo "#PBS -j eo"                                >> Compile.cmd
+    echo "#PBS -l nodes=1:ppn=4"                     >> Compile.cmd
+    echo "cd $CODEdir"                               >> Compile.cmd
+    echo "./COMPILE MAR"                             >> Compile.cmd
+    qsub Compile.cmd ;;
+  (nasa)
+    echo "#!/bin/bash"                               >  Compile.cmd
+    echo "#SBATCH -N 1"                              >> Compile.cmd
+    echo "#SBATCH -n 4"                              >> Compile.cmd
+    echo "#SBATCH -t 2:00:00"                        >> Compile.cmd
+    echo "#SBATCH --output=$WRKmsg/Compile.eo"       >> Compile.cmd
+    echo "cd $CODEdir"                               >> Compile.cmd
+    echo "./COMPILE MAR"                             >> Compile.cmd
+    sbatch Compile.cmd ;;
+  (idris)
+    #BATCH INSTRUCTIONS FOR IDRIS
+    echo "#!/bin/ksh"                                >  Compile.cmd
+    echo "#QSUB -ro"                                 >> Compile.cmd
+    echo "#QSUB -eo"                                 >> Compile.cmd
+    echo "#QSUB -o Compile.eo"                       >> Compile.cmd
+    echo "#QSUB -lM 1000Mb"                          >> Compile.cmd
+    echo "#QSUB -r Compile"                          >> Compile.cmd
+    echo                                             >> Compile.cmd
+    echo "ulimit -v unlimited"                       >> Compile.cmd
+    echo                                             >> Compile.cmd
+    echo "cd $CODEdir"                               >> Compile.cmd
+    echo "#compile MAR for uqbar"                    >> Compile.cmd
+    echo "./COMPILE MAR 2b"                        >> Compile.cmd
+    echo                                             >> Compile.cmd
+    qsub Compile.cmd ;;
+  (nic)
+    echo "#!/bin/bash"                               >  Compile.cmd
+    echo "#job name"                                 >> Compile.cmd
+    echo "#$ -N Compile"                             >> Compile.cmd
+    echo "#environment"                              >> Compile.cmd
+    echo "#$ -V"                                     >> Compile.cmd
+    echo "#memory reqest"                            >> Compile.cmd
+    echo "#$ -l h_vmem=2G"                           >> Compile.cmd
+    echo "#standard error/output streams"            >> Compile.cmd
+    echo "#$ -j y"                                   >> Compile.cmd
+    echo "#$ -o Compile.eo"                          >> Compile.cmd
+    echo "#$ -cwd"                                   >> Compile.cmd
+    echo                                             >> Compile.cmd
+    echo "cd $CODEdir"                               >> Compile.cmd
+    echo "#compile MAR for lemaitre"                 >> Compile.cmd
+    echo "./COMPILE MAR"                           >> Compile.cmd
+    echo
+    qsub Compile.cmd ;;
+  esac
+
+else
+
+  nice ./COMPILE MAR 
+
+fi
+
+#-------------------------------------------------------------------------------
+#  4 - SUMMARIZE THE SIMULATION INFORMATIONS
+#-------------------------------------------------------------------------------
+TITLE1 "SUMMARIZE THE SIMULATION INFORMATIONS"
+
+#
+# options, version < CODE.ctr, MAR.f
+#---------------------------------------
+
+mNH=`grep "NH="  $CTRLdir/CODE.ctr.$runnam | cut -d'"' -f2`
+mN1=`grep "NHs=" $CTRLdir/CODE.ctr.$runnam | cut -d'"' -f2`
+mN2=`grep "NHh=" $CTRLdir/CODE.ctr.$runnam | cut -d'"' -f2`
+mDD=`grep "DD="  $CTRLdir/CODE.ctr.$runnam | cut -d'"' -f2`
+mAD=`grep "AD="  $CTRLdir/CODE.ctr.$runnam | cut -d'"' -f2`
+mCA=`grep "CA="  $CTRLdir/CODE.ctr.$runnam | cut -d'"' -f2`
+mRT=`grep "RT="  $CTRLdir/CODE.ctr.$runnam | cut -d'"' -f2`
+mTU=`grep "TU="  $CTRLdir/CODE.ctr.$runnam | cut -d'"' -f2`
+mWB=`grep "WB="  $CTRLdir/CODE.ctr.$runnam | cut -d'"' -f2`
+mSV=`grep "SV="  $CTRLdir/CODE.ctr.$runnam | cut -d'"' -f2`
+mSN=`grep "SN="  $CTRLdir/CODE.ctr.$runnam | cut -d'"' -f2`
+mIB=`grep "IB="  $CTRLdir/CODE.ctr.$runnam | cut -d'"' -f2`
+mBS=`grep "BS="  $CTRLdir/CODE.ctr.$runnam | cut -d'"' -f2`
+mES=`grep "ES="  $CTRLdir/CODE.ctr.$runnam | cut -d'"' -f2`
+mAR=`grep "AR="  $CTRLdir/CODE.ctr.$runnam | cut -d'"' -f2`
+mOR=`grep "OR="  $CTRLdir/CODE.ctr.$runnam | cut -d'"' -f2`
+mSR=`grep "SR="  $CTRLdir/CODE.ctr.$runnam | cut -d'"' -f2`
+mPO=`grep "PO="  $CTRLdir/CODE.ctr.$runnam | cut -d'"' -f2`
+mVE=`grep "VE="  $CTRLdir/CODE.ctr.$runnam | cut -d'"' -f2`
+mVC=`grep "VC="  $CTRLdir/CODE.ctr.$runnam | cut -d'"' -f2`
+
+case $mNH in (T) mNH="basic non-hydrostatic option" ;;
+             (F) mNH="hydrostatic" ;; esac
+case $mN1 in (T) mN1="slope non-hydrostatic option" ;; (F) mN1="zut" ;; esac
+case $mN2 in (T) mN2="heat  non-hydrostatic option" ;; (F) mN2="zut" ;; esac
+case $mDD in (T) mDD="mass divergence damper option" ;; (F) mDD="zut" ;; esac
+case $mAD in (L) mAD="leap-frog back" ;; (-) mAD="cubic spline" ;; esac
+case $mCA in (b) mCA="MNH Peter Bechtold" ;; (E) mCA="Kerry Emmanuel" ;;
+             (-) mCA="none" ;; esac
+case $mRT in (M) mRT="UCL/ASTR" ;; (L) mRT="LMDZ" ;; (E) mRT="ECMWF" ;; esac
+case $mTU in (e) mTU="K-e Duynkerke" ;; (L) mTU="K-l Therry & Lacarrere" ;; esac
+case $mWB in (T) mWB="water mass balance" ;; (F) mWB="zut" ;; esac
+case $mSV in (T) mSV="SISVAT" ;; (F) mSV="force restore" ;; esac
+case $mSN in (T) mSN="snow model" ;; (F) mSN="no snow model" ;; esac
+case $mIB in (T) mIB="ice-sheet surface mass balance" ;; (F) mIB="zut" ;; esac
+case $mBS in (T) mBS="blowing snow model" ;; (F) mBS="zut" ;; esac
+case $mES in (T) mES="evolutive sastrugi model" ;; (F) mES="zut" ;; esac
+case $mAR in (T) mAR="Andreas * roughness model" ;; (F) mAR="zut" ;; esac
+case $mOR in (T) mOR="orography roughness set-up" ;; (F) mOR="zut" ;; esac
+case $mSR in (T) mSR="scalar roughness model" ;; (F) mSR="zut" ;; esac
+case $mPO in (T) mPO="polynya - sea-ice model" ;; (F) mPO="zut" ;; esac 
+case $mVE in (T) mVE="vectorisation" ;; (F) mVE="no vectorisation" ;; esac
+case $mVC in (T) mVC="small vectorisation" ;; (F) mVC="no small vectorisation" ;; esac
+
+mvers=`grep "C | Version" $MARsrc/forMAR/forMAR/MAR___.FOR | awk '{print($4,$5,$6)}'`
+
+#
+#forcing, domain, options, version < NST.ctr, MARgrd.ctr, NSTdim.inc, NESTOR.f
+#---------------------------------------
+
+tmp=`ls $DOMdir/input/NESTOR/ctrl/NST.ctr* 2> /dev/null`
+if [ `echo $tmp | wc -w` -ne 0 ] ; then
+  tmp=`echo $tmp | cut -d' ' -f1`
+  nstk=`grep "STKlsc=" $tmp | cut -d'=' -f2 | cut -d' ' -f1`
+  nlsc=`grep "NSTlsc=" $tmp | cut -d'=' -f2 | cut -d' ' -f1`
+else
+  nstk="NESTOR not processed on $cluster (`uname -n`)"
+  nlsc="NESTOR not processed on $cluster (`uname -n`)"
+fi
+
+tmp1=$DOMdir/input/NESTOR/MARgrd.ctr
+                  tmp=`grep "MAR domain center longitude" $tmp1 | cut -d'|' -f1`
+nclon=`echo $tmp | cut -d' ' -f1`
+                  tmp=`grep "MAR domain center latitude"  $tmp1 | cut -d'|' -f1`
+nclat=`echo $tmp | cut -d' ' -f1`
+                  tmp=`grep "MAR mesh size (km)"          $tmp1 | cut -d'|' -f1`
+nmesh=`echo $tmp | cut -d' ' -f1`
+
+tmp1=$DOMdir/input/NESTOR/src/NSTdim.inc
+                                        tmp=`grep "mx    =" $tmp1 | cut -d= -f2`
+   nmx=`echo $tmp | cut -d')' -f1` ;    tmp=`grep "my    =" $tmp1 | cut -d= -f2`
+   nmy=`echo $tmp | cut -d')' -f1` ;    tmp=`grep "mz    =" $tmp1 | cut -d= -f2`
+   nmz=`echo $tmp | cut -d')' -f1` ;    tmp=`grep "ni ="    $tmp1 | cut -d= -f2`
+   nni=`echo $tmp | cut -d')' -f1` ;    tmp=`grep "nj ="    $tmp1 | cut -d= -f2`
+   nnj=`echo $tmp | cut -d')' -f1` ;    tmp=`grep "nk ="    $tmp1 | cut -d= -f2`
+   nnk=`echo $tmp | cut -d')' -f1` ;    tmp=`grep "nvx   =" $tmp1 | cut -d= -f2`
+  nnvx=`echo $tmp | cut -d')' -f1` ;    tmp=`grep "mw    =" $tmp1 | cut -d= -f2`
+   nmw=`echo $tmp | cut -d')' -f1` ;    tmp=`grep "nsl   =" $tmp1 | cut -d= -f2`
+  nnsl=`echo $tmp | cut -d')' -f1` ;    tmp=`grep "nsno  =" $tmp1 | cut -d= -f2`
+ nnsno=`echo $tmp | cut -d')' -f1`
+
+tmp1=$DOMdir/input/NESTOR/src/NESTOR.f
+nvers=`grep "C |  NESTOR" $tmp1 | awk '{print($4",",$7,$8,$9)}'`
+
+#                                                                               
+# informations on the simulation > descr
+#---------------------------------------                                       
+
+descr=$CTRLdir/descr.$runnam
+touch $descr
+
+BCH ()  { echo "$1" >> $descr ; }
+
+#descr.$runnam: add those informations to the summary file of the simulation
+
+[ -f $descr ] && rm -f $descr
+
+#general
+
+BCH "region  :  $WLDreg"
+BCH "domain  :  ${runnam%??}${blank[9]}$nmx*$nmy*$nmz${blank[$((10-${#nmx}-${#nmy}-${#nmz}))]} $nmesh km${blank[$((7-${#nmesh}))]}${nclon}E ${nclat}N"
+if [ ${#nlsc} -gt 0 ] && [ ${nlsc%% *} = "NESTOR" ] ; then
+BCH "forcing :  $nlsc  $nni*$nnj*$nnk"
+else
+BCH "forcing :  $nlsc${blank[$((10-${#nlsc}))]}$nni*$nnj*$nnk"
+fi
+ 
+#MAR options                            
+
+BCH "${hyphen[80]}"
+                     BCH "Dynamics               :  $mNH"
+[ "$mN1" != "zut" ] && BCH "                          $mN1"
+[ "$mN2" != "zut" ] && BCH "                          $mN2"
+[ "$mDD" != "zut" ] && BCH "                          $mDD"
+                     BCH "Advection scheme       :  $mAD"
+                     BCH "Convective adjustement :  $mCA"
+                     BCH "Radiative transfer     :  $mRT"
+                     BCH "Turbulent transfer     :  $mTU"
+                     BCH "Microphysics           :  $mWB"
+[ "$mSV" = "SISVAT" ] && tmp="(nvx=$nnvx, nsl=$nnsl, mw=$nmw)" || tmp=""
+                     BCH "SVAT scheme            :  $mSV $tmp"
+[ "$mSN" = "snow model" ] && tmp="(nsno=$nnsno)" || tmp=""
+                     BCH "                          $mSN $tmp"
+[ "$mIB" != "zut" ] && BCH "                          $mIB"
+[ "$mBS" != "zut" ] && BCH "                          $mBS"
+[ "$mES" != "zut" ] && BCH "                          $mES"
+[ "$mAR" != "zut" ] && BCH "                          $mAR"
+[ "$mOR" != "zut" ] && BCH "                          $mOR"
+[ "$mSR" != "zut" ] && BCH "                          $mSR"
+[ "$mPO" != "zut" ] && BCH "                          $mPO"
+                     BCH "Computation            :  $mVE"
+                     BCH "                          $mVC"
+
+#directories and programs version       
+
+BCH "${hyphen[80]}"
+BCH "MAR    version         :  $mvers"
+BCH "NESTOR version         :  $nvers"
+BCH "simulation directories :  [home]$DOMdir"
+BCH "                          [stock]$STKmar/$domain/$runnam"
+BCH "forcing directory      :  [stock]$nstk"
+BCH "MAR    control files in:  [home]$CTRLdir"
+BCH "NESTOR control file  in:  [home]$DOMdir/input/NESTOR/ctrl"
+
+echo
+cat $descr
+
+#-------------------------------------------------------------------------------
+#  X - HAVE A NICE DAY :o)                                                      
+#-------------------------------------------------------------------------------
+TITLE1 "HAVE A NICE DAY :o)"

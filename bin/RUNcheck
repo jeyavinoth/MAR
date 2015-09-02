@@ -1,0 +1,194 @@
+#!/bin/bash
+
+[ -f /etc/bash.bashrc ] && . /etc/bash.bashrc
+[ -f /etc/bash ]        && . /etc/bash
+
+. ~/.bashrc
+
+. ~/MAR/bin/INI.ctr
+
+###############################################################################################
+
+ping -q -c 2 $stock &> /dev/null
+
+[ $? -ne 0 ] && echo "ERROR ping to $stock" && exit
+
+ssh $ustock@$stock ls $STKmar &> /dev/null
+
+[ $? -ne 0 ] && echo "ERROR ssh to $stock" && exit
+
+###############################################################################################
+
+cd $MARsim/bin/run
+
+for file in * ; do
+ if [ -n $file ] && [ -f $file ] && [ ${#file} -eq 3 ] ; then
+
+  # ---------------------------------------------------------------------------
+
+  # test if there are problems with time step or with internet connection
+
+  max=6
+
+  for i in `seq 1 $max` ; do
+   line[$i]=`tail -n $i $file | head -n 1 | awk '{print $4 $5 $6 $7 $8 $9}'` 
+  done
+
+  diff=0
+  for i in `seq 2 $max` ; do
+   [ ${line[$i]} != ${line[1]} ] && diff=1
+  done
+
+  if [ $diff -eq 0 ] && [ `wc -l $file | awk '{print $1}'` -ge $max ] ; then
+   mv $file ${file}_CRASH
+   exit 10
+  fi
+
+  # ---------------------------------------------------------------------------
+ 
+  sim=`tail -n 1 $file | awk '{print $4}'` 
+
+  file=`ls -1t  $SIMdir/${WLDreg}${sim:0:1}/run/${sim}/MAR_${WLDreg}${sim}*.cmd | head -1`
+
+  [ ! -f $file ] && echo "$file non found" && exit 11
+
+  # date OK
+
+  day=`ls --full-time $file | awk '{print $6}'`
+  day=${day##*-}            ; day=${day#0}
+  today=`date +"%d"`        ; today=${today#0}
+  diff=$(( $today - $day )) ; diff=${diff#*-}
+
+  if [ ${#diff} -gt 0 ] && [ $diff -ge 3 ] && [ $diff -le 26 ] ; then
+   echo "WARNING; $file too old!!!"
+   touch $HOME/WARNING_MAR_${WLDreg}${sim}_too_old
+  fi
+
+  # size OK
+
+  size=`ls -lt $file       | awk '{print $5}'`
+  head_file=`head -1 $file | grep bash`
+  if [ $size -le 30000 ]  || [ ${#head_file} -eq 0 ] ; then
+   rm -f $file
+   echo "WARNING: $file corrupted (size)"
+   file=`ls -1t $SIMdir/${WLDreg}${sim:0:1}/run/${sim}/MAR_${WLDreg}${sim}*.cmd | head -1`
+  fi
+
+  # nbr of lines OK
+
+  wc=`wc -l $file | awk '{print $1}'`
+  if [ $wc -le 700 ] ; then
+   rm -f $file
+   echo "WARNING: $file corrupted (nbr of lines)"
+   file=`ls -1t $SIMdir/${WLDreg}${sim:0:1}/run/${sim}/MAR_${WLDreg}${sim}*.cmd | head -1`
+  fi
+
+  # ---------------------------------------------------------------------------
+
+  type squeue &>/dev/null ; err=$?
+
+  if [ $err -eq 0 ] ; then
+ 
+   squeue -u $USER | grep "\ $sim" &>/dev/null ; err=$?
+
+   if [ $err -eq 0 ] ; then
+
+         squeue -u $USER | grep "\ $sim" | grep Resource &>/dev/null ; err1=$?
+    nbr=`squeue -u $USER | grep "\ $sim" | wc -l` 
+
+    nbr_cpu=`grep "NBR_CPU=" $file  | head -1` ; nbr_cpu=${nbr_cpu#*=}
+
+    if [ $err1 -eq 0 ] && [ $nbr -eq 1 ] && [ $nbr_cpu -gt 4 ] ; then
+
+     id=`squeue -u $USER | grep "\ $sim" | awk '{print $1}'`
+     scancel $id ; [ $? -ne 0 ] && echo "$sim $id not found" && exit
+
+     nbr_cpu=`grep "NBR_CPU=" $file  | head -1` ; nbr_cpu=${nbr_cpu#*=}
+     echo "Simulation $sim Resource (nbr_cpu=$nbr_cpu)"
+     nbr_cpu1=$(( nbr_cpu - 1 )) ; [ $nbr_cpu1 -le 4 ] && nbr_cpu1=4
+
+     sed "s/cpus-per-task\=${nbr_cpu}/cpus-per-task\=${nbr_cpu1}/g" $file > $SIMdir/${WLDreg}${sim:0:1}/run/${sim}/tmp.dat
+     sed "s/NBR_CPU\=${nbr_cpu}/NBR_CPU\=${nbr_cpu1}/g"             $SIMdir/${WLDreg}${sim:0:1}/run/${sim}/tmp.dat > $file
+     rm -f $SIMdir/GR${sim:0:1}/run/${sim}/tmp.dat &>/dev/null
+
+     sbatch  $file
+     sleep 10 
+     RUNcheck -r
+
+    else
+     echo "Simulation $sim OK (nbr=$nbr)"
+
+     if [ $nbr -ge 2 ] ; then
+
+       id1=`squeue -u $USER | grep "\ $sim" | grep "\ R\ " | awk '{print $1}' | head -n 1`
+       id2=`squeue -u $USER | grep "\ $sim" | grep "\ R\ " | awk '{print $1}' | tail -n 1`
+      sim1=`squeue -u $USER | grep "\ $sim" | grep "\ R\ " | awk '{print $3}' | head -n 1`
+      sim2=`squeue -u $USER | grep "\ $sim" | grep "\ R\ " | awk '{print $3}' | tail -n 1`
+
+      if [ ${#sim1} -gt 0 ] && [ ${#sim2} -gt 0 ] && [ $sim1 = $sim2 ] && [ $id1 -ne $id2 ] ; then
+       scancel $id1
+       scancel $id2
+       echo "double $sim1 running" && exit 
+      fi
+
+     fi 
+
+    fi
+
+   else
+    echo "Simulation $sim KO!"
+    if [ ${#1} -gt 0 ] && [ ${1} = "-r" ] ; then 
+     sbatch $file 
+     sleep 10
+    fi
+   fi
+
+  fi
+
+  # ---------------------------------------------------------------------------
+
+  type qstat &>/dev/null ; err2=$?
+
+  if [ $err2 -eq 0 ] && [ $err1 -ne 0 ]  ; then
+
+   qstat -u $USER | grep " $sim" &>/dev/null ; err=$?
+
+   if [ $err -eq 0 ] ; then
+    echo "Simulation $sim OK"
+
+    qw=`qstat -u $USER | grep " $sim" | awk '{print $5}' | tail -n 1 2>/dev/null`
+    nbr_cpu=`grep "NBR_CPU=" $file  | head -1` ; nbr_cpu=${nbr_cpu#*=}
+
+    if [ "$qw" == "qw" ] && [ $nbr_cpu -gt 4 ] ; then
+
+     id=`qstat -u $USER | grep "\ $sim" | awk '{print $1}'`
+     qdel $id
+
+     nbr_cpu=`grep "NBR_CPU=" $file  | head -1` ; nbr_cpu=${nbr_cpu#*=}
+     echo "Simulation $sim Resource (nbr_cpu=$nbr_cpu)"
+     nbr_cpu1=$(( nbr_cpu - 1 )) ; [ $nbr_cpu1 -le 4 ] && nbr_cpu1=4
+
+     sed "s/\ snode\ ${nbr_cpu}/\ snode\ ${nbr_cpu1}/g" $file > $SIMdir/${WLDreg}${sim:0:1}/run/${sim}/tmp.dat
+     sed "s/NBR_CPU\=${nbr_cpu}/NBR_CPU\=${nbr_cpu1}/g"         $SIMdir/${WLDreg}${sim:0:1}/run/${sim}/tmp.dat > $file
+     sed "s/\#\$\ \-l\ highmem/\#\#\$\ \-l\  highmem/g" $file > $SIMdir/${WLDreg}${sim:0:1}/run/${sim}/tmp.dat
+     mv $SIMdir/${WLDreg}${sim:0:1}/run/${sim}/tmp.dat  $file
+     rm -f $SIMdir/GR${sim:0:1}/run/${sim}/tmp.dat &>/dev/null
+
+     qsub  $file
+
+    fi
+
+   else
+    echo "Simulation $sim KO!"
+    if [ ${#1} -gt 0 ] && [ ${1} = "-r" ] ; then
+     qstat -u $USER | grep " $sim" &>/dev/null  ; err=$?
+     [ $err -ne 0 ] &&  qsub $file
+     sleep 10
+    fi
+   fi
+
+  fi
+
+
+ fi
+done

@@ -1,0 +1,525 @@
+#!/bin/bash 
+#
+# v3.1 - 21.06.2006 (12.02.2004)
+#                                                                               
+# NAME                                                                          
+#                                                                               
+#   Compile.x - Compile NESTOR, MAR or MAPOST on a machine
+#                                                                               
+# SYNOPSIS                                                                      
+#                                                                               
+#   Compile.x  code  [compilor set]
+#                                                                              
+# OPERANDS                                                                      
+#                                                                               
+#   code            name of the code to compile                    [NST/MAR/PMP]
+#                   (e.g.: './Compile.x NST' compiles NESTOR)
+# [ compilor set    integer number refeering to an appropriate machine
+#                   listed in the table hereunder. 
+#                   (e.g.: './COMPILE MAR 3' compiles MAR for the machine 3) ]
+#                                                                               
+# DESCRIPTION                                                                   
+#                                                                               
+#   The Compile.x script compiles NESTOR, MAR or MAPOST. It must be located in
+#   the directory with the sources to compile.                  
+#   You can set your own preferences in the 'User's paremeters' area (only!).
+#
+#   The 'compilor set' argument is optional. If specified, it replaces the 
+#   compilor set which is used by default by the Compile.x script and which is
+#   defined with the 'set_foc' variable hereunder. Especially useful for the
+#   distinction between rhodes and uqbar on the IDRIS cluster.
+#                                                                               
+
+
+#*******************************************************************************
+# User's parameters                                                             
+#                                                                               
+
+#general
+
+. INI.ctr
+. FUNCTIONS
+
+#computation precision
+
+MAR_DP=n          #MAR, NESTOR (NST), MAPOST (PMP) in simple precision [n]
+NST_DP=n          #                                or double precision [y]
+PMP_DP=n          #MAPOST always in simple precision
+
+#compilor set
+
+set_foc=1        #compilor set (foc=FOrtran Compilor)
+                  #     (see further for detailed compiling and linking options)
+
+                  # set_foc  machine                           Fortran compilor
+                  #                                                           
+                  # 1        linux      Linux x86_64           ifort
+
+#MAR (only) compilation specifications
+
+    #The next XXvariables are adapted when the script 'CODE' calls 'Compile.x',
+    #but you can set them by hand if you want to use manually this script.
+
+runnam=XXrunnam   #run name (MAR executable will be MAR_$runnam.exe) (e.g. a04)
+domain=XXdomain   #domain name                                       (e.g. EUa)
+CODEdir=XXCODEdir #code directory for the above-specified run
+STKcod=XXSTKcod   #directory on the stock where to save the code + executable
+                  #(usually: [stock:]MAR/EUa/a04/code)
+fsplit=XXfsplit   #[y|n]   y: MAR is fsplitted AND must be compiled so
+VE=XXVE           #[T|F]   T: vectorized code,  F: scalar code                 
+RT=XXRT           #[L|M|E] LMDz/MAR/ECMWF radiative transfer scheme
+                  #        (existing radCEP_*.d*_* => no compilation)
+CA=XXCA           #[-|b|E] no/Bechtold/Emanuel convective adjustment           
+                  #        (existing cvamnh.o      => no compilation)
+MP=XXMP           #[T|F] Open-MP
+
+#
+# End of User's parameters
+#*******************************************************************************
+
+#===============================================================================
+# Compilors set
+#===============================================================================
+
+#[ ${#2} -ne 0 ]         && set_foc=$2
+[ $cluster == "foehn"  ]  && set_foc=3
+[ $cluster == "froggy" ]  && set_foc=3
+
+  #foc = Fortran compilor              
+  #opX = compilation and linking options 
+  #lnk = linking options                 
+  #netcdf = NetCDF library               
+
+
+# MAR don't work with ifort 11.1.080, 12.0.5, 11.0, 10.0, 12.1, 13.x, 
+#           work      ifort 11.1.056, 12.0.2, 10.1,     
+
+case $set_foc in
+(1)  #OpenSuse Linux 12.3 (ifort)
+  export inf="OpenSuse Linux 12.3 (tested with ifort 12.0, 11.1 and 10.1 64bits)"
+  export foc="ifort"
+  export opt="-w -zero -static -vec_report0 -shared-intel -mcmodel=medium -mp1 -ipo -O3 -xSSE4.1 -traceback -assume buffered_io" # -132
+  export lnk="-lnetcdf_ifort"
+  export netcdf="/usr/include/netcdf.inc" 
+
+  if [ $cluster == "nasa" ] ; then
+   export lnk="-L /discover/nobackup/eunoble/model/MAR_Libs -lnetcdf_ifort"
+   export netcdf="/discover/nobackup/eunoble/model/MAR_Libs/netcdf.inc"
+  fi
+
+  ;;
+(2) #OpenSuse Linux 12.3 (gfortran)
+  export inf="OpenSuse Linux 12.3 (gfortran 4.7.2)"
+  export foc="gfortran"
+  export opt="-w -march=native -ffinite-math-only -fcx-limited-range -O3 -finline-limit=600 -floop-interchange -flto -fno-rounding-math -fno-math-errno"
+  export opt="-w -march=native -fcx-limited-range -O3 -finline-limit=600 -floop-interchange -flto"
+  export lnk="-lnetcdff -lnetcdf"
+  export netcdf="/usr/include/netcdf.inc" ;;
+
+(3) # foehn.ujf-grenoble.fr
+  export inf="foehn.ujf-grenoble.fr"
+  export foc="ifort"
+  export opt="-w -zero -vec_report0 -static -O3 -fast -mp1 -prec-div -traceback"
+  export lnk="/home/dverfail/MAR/lib/lib/libnetcdf.a"
+  export netcdf="/home/dverfail/MAR/lib/include/netcdf.inc" ;;
+
+(*)  #UNDEFINED!!! -> exit
+  echo '@&?%! '"compilor error: set_foc undefined [$set_foc]" && exit
+esac
+
+echo $inf     > Compile.info
+echo $foc    >> Compile.info
+type $foc    >> Compile.info
+echo $opt    >> Compile.info
+echo $lnk    >> Compile.info
+echo $netcdf >> Compile.info
+
+#===============================================================================
+# HELP
+#===============================================================================
+
+model=$1
+
+[ ${#1} -eq 0 ] && model=MAR
+
+[ ${#1} -ne 0 ] && [ $1 != "NST" -a $1 != "MAR" -a $1 != "PMP" ] && head -31 $0 && exit 99
+
+
+#===============================================================================
+# 1 - INITIALISATION
+#===============================================================================
+
+Ferror () { echo "  ${1}${blank[35-${#1}]}[KO]" ; }
+Fgoon  () { echo "  ${1}${blank[35-${#1}]}[OK]" ; }
+
+#===============================================================================
+#  COMPILATION OF NESTOR, MAR OR MAPOST
+#===============================================================================
+
+case $model in
+
+#-------------------------------------------------------------------------------
+#NESTOR
+#-------------------------------------------------------------------------------
+(NST)
+
+tmp=`grep "C |  NESTOR" NESTOR.f | awk '{print($4",",$7,$8,$9)}'`
+                                                                 #NESTOR version
+echo "NESTOR code version     : $tmp"
+echo "Informatic platform     : $inf"
+echo "Fortran compilor        : $foc"
+echo "Options, compil. & link.: $opt"
+echo "Options,           link.: $lnk"
+echo
+
+#librairy NetCDF                        
+
+echo "      INCLUDE '$netcdf'" > NetCDF.inc
+
+#simple/double precision                
+
+[ $NST_DP = "y" ] && ln -s MARout.f.DP MARout.f
+
+#COMPILATION                            
+
+rm -f  *.o
+
+for file in *.f ; do
+  $foc  -c $opt  $file
+  if [ $? -ne 0 ] ; then
+    Ferror "$file"
+    DAMNED "compilation error"
+  else
+    Fgoon  "$file"
+  fi
+done
+
+#LINKING                                
+
+rm -f               ../NESTOR.exe
+$foc  $opt  *.o  -o ../NESTOR.exe     $lnk
+
+#END                                    
+
+echo
+if [ -f ../NESTOR.exe -o -f ../NESTOR_DP.exe ] ; then
+  Fgoon  "NESTOR compilation"
+else
+  Ferror "NESTOR compilation"
+fi
+
+#END OF NESTOR COMPILATION-LINKING
+;;
+
+
+#-------------------------------------------------------------------------------
+#MAPOST
+#-------------------------------------------------------------------------------
+(PMP)
+
+tmp=`grep "C | MAPOST" MAPOST.f | awk '{print($7,$8)}'`
+                                                                 #MAPOST version
+
+echo "MAPOST code version     : $tmp"
+echo "Informatic platform     : $inf"
+echo "Fortran compilor        : $foc"
+echo "Options, compil. & link.: $opt"
+echo "Options,           link.: $lnk"
+
+#librairy NetCDF                        
+
+echo "      INCLUDE '$netcdf'" > NetCDF.inc
+
+#COMPILATION                            
+
+rm -f  *.o
+
+for file in *.f ; do
+  $foc -c $opt $file
+  if [ $? -ne 0 ] ; then
+    Ferror "$file"
+    DAMNED "compilation error"
+  else 
+    Fgoon  "$file"
+  fi
+done
+
+#LINKING
+
+rm -f               ../MAPOST.exe
+$foc  $opt  *.o  -o ../MAPOST.exe  $lnk
+
+#END
+
+echo
+if [ -f ../MAPOST.exe ] ; then
+  Fgoon "MAPOST compilation"
+else
+  Ferror "MAPOST compilation"
+fi
+echo
+
+#END OF MAPOST COMPILATION-LINKING
+;;
+
+
+#-------------------------------------------------------------------------------
+#MAR
+#-------------------------------------------------------------------------------
+(MAR)
+
+[   -f $PWD/MAR___.for ]     && CODEdir=$PWD
+
+tmp=`grep "C | Version" $CODEdir/MAR___.for | awk '{print($4,$5,$6)}'` #MAR version
+
+echo "MAR code version        : $tmp"
+echo "Informatic platform     : $inf"
+echo "Fortran compilator      : $foc (`type $foc`)"
+echo "                version : `$foc -v`"
+echo "Options, compil. & link.: $opt"
+echo "Options,           link.: $lnk"
+echo "CODEdir                 : $CODEdir"
+
+export openmp=
+
+if [ $foc == "ifort" ] ; then
+$foc -v &> ~/tmp.txt
+ifortV=`cat ~/tmp.txt`
+ifortV=${ifortV##*\ } 
+ifortV=${ifortV%%\.*}
+rm -f ~/tmp.txt
+                       [ $MP = "T" ] && export openmp="-openmp" 
+[ $ifortV -ge 13 ] &&  [ $MP = "T" ] && export openmp="-openmp -openmp-threadprivate=compat -openmp-report=1"
+fi
+
+[ $MP = "T" ] && [ $foc == "gfortran" ] && export openmp="-fopenmp"
+
+#
+#compile and link
+#
+
+echo "      INCLUDE '$netcdf'" > NetCDF.inc
+
+
+[ $fsplit = "n" ] && [ $MP = "T" ] && echo "ERROR: fsplit=n and MP=T" && exit
+
+
+echo ; REMARK "compilation" ; echo
+
+#compilation: radCEP.d
+
+if [ $RT = "E" ] ; then
+
+  radmz=`grep "mz=" MARdim.inc | cut -d',' -f1 | cut -d'=' -f2`
+  radmz=0`echo $radmz` 
+
+  if [ ! -d radCEP.d/radCEP_${radmz}.d${foc} ] ; then
+
+    echo "It takes around 2 hours to compile the ECMWF radiative scheme..."
+
+                     radvec=256 # faster with ifort
+    [ $MP = "T" ] && radvec=1
+
+    cd $CODEdir/radCEP.d
+    time bash radCEP.bash $radvec $radmz   #radCEP_${radmz}.d${foc} created
+                                           #in $CODEdir/radCEP.d/     
+    cd $CODEdir
+
+  fi
+
+  radCEPo="radCEP.d/radCEP_${radmz}.d${foc}/*.o"
+
+  Fgoon  "radCEP.d/radCEP_${radmz}.d${foc}"
+
+  cp -fp  radCEP.d/radCEP_${radmz}.d${foc}/radCEP.inc  $CODEdir/
+
+  for file in PHYrad_CEP*.f ; do 
+   time $foc $openmp $opt -c $file
+    if [ $? -ne 0 ] ; then
+      Ferror "$file"
+      DAMNED "compilation error"
+      exit
+    else
+      Fgoon  "$foc $openmp  $opt  -c $file"
+    fi
+  done
+
+fi
+
+#compilation: PHYrad_LMD.f
+
+if [ $RT = "L" ] ; then
+
+  time $foc  $opt  -c  PHYrad_LMD.f
+  if [ $? -ne 0 ] ; then
+    Ferror "PHYrad_LMD.f"
+    DAMNED "compilation error"
+  else
+    Fgoon "$foc  $opt  -c PHYrad_LMD.f"
+  fi
+    
+fi
+
+
+#compilation: *.f
+
+if [ $fsplit = "y" ] ; then
+
+  for file in *.f ; do
+  if [ -f $file ] && [ $file != "PHYrad_LMD.f" ] && [ $file != "PHYrad_CEP.f" ] && [ $file != "PHYrad_CEP_mp.f" ] ; then
+    
+    time $foc $opt  -c $file
+    if [ $? -ne 0 ] ; then
+      Ferror "$file"
+      DAMNED "compilation error"
+      exit
+    else
+      Fgoon  "$foc  $opt  -c $file"
+    fi
+  fi
+  done
+
+fi
+
+#compilation: zext.f libUN.f MAR___.f SBCnew.f
+
+if [ $fsplit = "n" ] ; then
+
+  for file in zext.f libUN.f MAR___.f SBCnew.f ; do
+    time $foc  $opt  -c $file
+    if [ $? -ne 0 ] ; then
+      Ferror "$file"
+      DAMNED "compilation error"
+    else
+      Fgoon  "$foc  $opt  -c $file"
+    fi
+  done
+
+  if [ -f H2O_WB.f ] ; then
+
+    file="H2O_WB.f"
+    time $foc  $opt  -c $file
+    if [ $? -ne 0 ] ; then
+      Ferror "$file"
+      DAMNED "compilation error"
+    else
+      Fgoon  "$foc  $opt  -c $file"
+    fi
+
+  fi
+
+fi
+
+#compilation: cvamnh.f90
+  
+[ $MAR_DP = "T" ] && tmp="-r8" || tmp=""
+
+file="cvamnh.f90"
+if [ $CA = "b" ] ; then
+  if [ ! -f cvamnh.o ] ; then
+    time $foc $openmp $opt $tmp  -c $file  -o cvamnh.o
+    if [ $? -ne 0 ] ; then
+      Ferror "$file"
+      DAMNED "compilation error"
+      exit
+    else
+      Fgoon  "$foc $openmp $opt  -c $file"
+    fi
+  else
+    Fgoon  "${file/f90/o} kept"
+  fi
+fi
+
+if [ $MP = "T" ] ; then 
+
+  for file in *sisvat*.f vgoptp.f snoptp.f dynadv_dlf_mp.f cvagen_mnh.f dyndps_mp.f dyngpo_mp.f dyndgz_mp.f dynfil_3d_mp.f dynadv_lfb_2p.f hydmic.f hydgen.f qsat2d.f ; do #  
+   time $foc $openmp $opt -c $file
+    if [ $? -ne 0 ] ; then
+      Ferror "$file"
+      DAMNED "compilation error"
+      exit
+    else
+      Fgoon  "$foc $openmp  $opt  -c $file"
+    fi
+  done
+fi
+
+
+echo ""
+
+if [ $foc != "gfortran" ] ; then
+         $foc -c -O3 libUN.f
+ Fgoon  "$foc -c -O3 libUN.f"
+         ar   -cq    libUN.a libUN.o
+         rm   -f             libUN.o    
+fi
+
+#linking                              
+
+echo ; REMARK "linking"
+
+[ -f libUN.a ] && libUN=libUN.a
+
+time $foc $openmp  $opt  *.o ${radCEPo}  -o MAR_$runnam.exe $libUN $lnk
+tmp=$?
+
+#
+# Backup: code and executable if successful compilation
+#
+
+echo
+
+if [ $tmp -eq 0 -a -f MAR_$runnam.exe ] ; then
+  Fgoon  "MAR compilation"
+  end=yes
+else
+  Ferror "MAR compilation"
+  end=no
+fi
+
+echo
+
+if [ $end = "yes" ] ; then
+
+  #put the MAR executable on stock       
+
+  REMARK "MAR_$runnam.exe stored on stock" ; echo
+
+  smput  "$CODEdir"  "MAR_$runnam.exe"  "$STKcod"
+  if [ $? -eq 0 ] ; then
+    rm -f $CODEdir/MAR_$runnam.exe
+    tmp=0
+  else
+    tmp=1
+  fi
+  echo
+
+  #save the code directory on stock also 
+
+  REMARK "source code for $runnam stored on stock" ; echo
+
+  cd $CODEdir
+  if [ $tmp -eq 0 ] ; then
+    rm -f   *.o  *.L
+    rm -rf  $CODEdir/src
+    tarX   "$CODEdir" "*" "compilink"
+    gzip compilink.tar
+    smput  "$CODEdir"     "compilink.tar.gz"  "$STKcod"
+    cd      $CODEdir
+    mv      $CODEdir/Compile.*  ..
+    rm -rf  $CODEdir/*
+    mv     ../Compile.*  $CODEdir/
+  else
+    echo "an error occurred, nothing saved on the stock"
+  fi
+  echo
+
+fi
+
+#END OF MAR COMPILATION-LINKING
+;; esac
+
+
+#-------------------------------------------------------------------------------
+#  X - END OF TROUBLES :o)                                                      
+#-------------------------------------------------------------------------------
