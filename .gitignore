@@ -1,0 +1,15 @@
+*.dat
+*.cdf
+*.nc
+*.gz
+*.tar
+*.tgz
+*.mat
+
+*.o
+a.out
+
+in/
+out/
+run/
+sim/

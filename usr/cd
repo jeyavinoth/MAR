@@ -1,0 +1,267 @@
+#---*--------*--------*--------*--------*--------*-----------*---------------MAR(OUTice.f)-+
+#   Variables ----------  Dimensions ----------- Units       Description
+#---*--------1--------2--------3--------4--------*-----------*-----------------------------+
+    DATE     -        -        -        time     YYYYMMDDHH  Date(YYYY MM DD HH)
+    YYYY     -        -        -        time     YYYYMMDDHH  Date(YYYY MM DD HH)
+    MM       -        -        -        time     YYYYMMDDHH  Date(YYYY MM DD HH)
+    DD       -        -        -        time     YYYYMMDDHH  Date(YYYY MM DD HH)
+    HH       -        -        -        time     YYYYMMDDHH  Date(YYYY MM DD HH)
+    MIN      -        -        -        time     YYYYMMDDHH  Date(YYYY MM DD HH)
+    LON      x        y        -        -        degrees     Longitude
+    LAT      x        y        -        -        degrees     Latitude
+    SH       x        y        -        -        m           Surface Height 
+    SRF      x        y        -        -        -           Surface Type 
+    SOL      x        y        -        -        -           Soil Type 
+    MSK      x        y        -        -        -           Ice Sheet Area
+    SLO      x        y        -        -        -           Surface Slope
+    CZ       x        y        -        -        -           Cosine of Solar Zenith Angle 
+    SAL      x        y        -        -        -           Soil Albedo     
+    VEG      x        y        sector   -        -           Vegetation Type Index
+    FRV      x        y        sector   -        %           Vegetation Class Coverage
+#   FRV2     x        y        sector   time     %           Average Veg. Class Cov.
+    FRA      x        y        sector   time     %           Surface fraction:sic or land
+#   SIC      x        y        sector   time     %           Sea ice cover
+#    
+#-- Initial Mass Balance ------------------------------------------------------------------+ 
+#
+    ZN0      x        y        sector   time     m           Ini. old firn/ice thickness
+#   MB0      x        y        sector   time     mmWE        Ini. old firn/ice mass balance
+#    
+#-- Mass Balance --------------------------------------------------------------------------+ 
+#         
+    MB       x        y        sector   time     mmWE        Mass Balance     above old Ice 
+    ZN1      x        y        sector   time     m           Snow Pack Height above old Ice
+    ZN2      x        y        sector   time     m           Snow Pack Height above Ice
+    ZN3      x        y        sector   time     m           Snow Pack Height Total  
+#...........................................................................................
+    MBto     x        y        sector   time     mmWE        Mass Balance Variation 
+#   MBs      x        y        sector   time     mmWE        Sublimation 
+    MBe      x        y        sector   time     mmWE        Net srf water vapour fluxes 
+#   MBmt     x        y        sector   time     mmWE        Melting (Total)
+    MBm      x        y        sector   time     mmWE        Only Melting
+    MBr      x        y        sector   time     mmWE        Refreezing
+    MBsw     x        y        sector   time     mmWE        Surface Water
+    MBrr     x        y        -        time     mmWE        Rain
+    MBcp     x        y        -        time     mmWE        Convective precipitation
+    MBsf     x        y        -        time     mmWE        Snow     
+    MBru     x        y        -        time     mmWE        RunOff
+    MBru2    x        y        sector   time     mmWE        RunOff
+#   smb      x        y        sector   time     mmWE        Surface Mass Balance
+#   snf      x        y        -        time     mmWE        Snowfall
+#   rnf      x        y        -        time     mmWE        Rainfall
+#   sbl      x        y        sector   time     mmWE        Sublimation 
+#   mlt      x        y        sector   time     mmWE        Melting
+#   rfz      x        y        sector   time     mmWE        Refreezing
+#   rof      x        y        sector   time     mmWE        Run-off
+#    
+#-- Last Day Average ----------------------------------------------------------------------+ 
+#
+    TTmin    x        y        atmlay   time     C           Min Temp
+    TTmax    x        y        atmlay   time     C           Max Temp
+    TT       x        y        atmlay   time     C           Temperature
+    UU       x        y        atmlay   time     m/s         x-Wind Speed component 
+    VV       x        y        atmlay   time     m/s         y-Wind Speed component 
+    UV       x        y        atmlay   time     m/s         Wind Speed
+    UVmax    x        y        atmlay   time     m/s         Maximum Wind Speed
+    WW       x        y        atmlay   time     cm/s        w-Wind Speed component 
+    QQ       x        y        atmlay   time     g/kg        Specific Humidity 
+    RH       x        y        atmlay   time     %           Relative Humidity 
+    ZZ       x        y        atmlay   time     m           Model Surface Height
+    PDD      x        y        -        time     C           Postive Degree Day
+    SP       x        y        -        time     hPa         Surface Pressure
+#.. on surface levels only (boundary layers ) .............................................
+#   TTb      x        y        blev     time     C           Temperature
+#   QQb      x        y        blev     time     g/kg        Specific Humidity 
+#   UUb      x        y        blev     time     m/s         x-Wind Speed component 
+#   VVb      x        y        blev     time     m/s         y-Wind Speed component 
+#   UVb      x        y        blev     time     m/s         Horizontal Wind Speed
+#   ZZb      x        y        blev     time     m           Height
+#.. on pressure levels ....................................................................
+    TTp      x        y        plev     time     C           Temperature
+    QQp      x        y        plev     time     g/kg        Specific Humidity 
+    UUp      x        y        plev     time     m/s         x-Wind Speed component 
+    VVp      x        y        plev     time     m/s         y-Wind Speed component 
+    UVp      x        y        plev     time     m/s         Horizontal Wind Speed
+    ZZp      x        y        plev     time     m           Height
+#.. on height levels ......................................................................
+    TTz      x        y        ztqlev   time     C           Temperature
+    QQz      x        y        ztqlev   time     g/kg        Specific Humidity 
+    UUz      x        y        zuvlev   time     m/s         x-Wind Speed component 
+    VVz      x        y        zuvlev   time     m/s         y-Wind Speed component 
+    UVz      x        y        zuvlev   time     m/s         Horizontal Wind Speed
+#...........................................................................................
+    SWD      x        y        -        time     W/m2        Short Wave Downward
+    SWU      x        y        -        time     W/m2        Short Wave Upward
+    SUN      x        y        -        time     s           Sunshine (SWD>120w/m2)
+    LWD      x        y        -        time     W/m2        Long  Wave Downward
+    LWU      x        y        -        time     W/m2        Long  Wave Upward
+    SHF      x        y        -        time     W/m2        Sensible Heat Flux
+    LHF      x        y        -        time     W/m2        Latent Heat Flux
+    AL       x        y        -        time     -           Albedo
+    AL1      x        y        sector   time     -           Albedo (Tot Refl/Tot Inc)
+    AL2      x        y        sector   time     -           Albedo  
+    SWDT     x        y        -        time     W/m2        Short Wave Downward (toa)
+    SWUT     x        y        -        time     W/m2        Short Wave Upward (toa) 
+    LWUT     x        y        -        time     W/m2        Long  Wave Upward (toa)
+#...........................................................................................  
+    CC       x        y        -        time     -           Cloud Cover   
+    CU       x        y        -        time     -           Cloud Cover (up)   
+    CM       x        y        -        time     -           Cloud Cover (Middle)   
+    CD       x        y        -        time     -           Cloud Cover (down)   
+    QW       x        y        -        time     kg/kg       Cloud Dropplets Concent.   
+    QI       x        y        -        time     kg/kg       Cloud Ice Crystals Concent.
+    QS       x        y        -        time     kg/kg       Cloud Snow Flakes Concent.   
+    QR       x        y        -        time     kg/kg       Cloud Rain Concentration      
+    COD      x        y        -        time     -           Cloud Optical Depth
+#...........................................................................................         
+    ST       x        y        -        time     C           Surface Temperature
+    ST2      x        y        sector   time     C           Surface Temperature
+    Z0       x        y        sector   time     m           Roughness length for Moment.   
+    R0       x        y        sector   time     m           Roughness length for Heat  
+#   UUS      x        y        sector   time     m/s         Friction Velocity 
+#   UTS      x        y        sector   time     K.m/s       Surface Pot. Temp. Turb. Flux
+#   UQS      x        y        sector   time     kg/kg.m/s   Water Vapor Flux
+#   USS      x        y        sector   time     kg/kg.m/s   Blowing Snow Flux
+    PBL      x        y        sector   time     m           Height of Bound. Layer (2val.)
+    WVP      x        y        -        time     kg/m2       Water Vapour Path       
+    IWP      x        y        -        time     kg/m2       Ice Water Path      
+    CWP      x        y        -        time     kg/m2       Condensed Water Path       
+#    
+#-- Snow Pack & Last Day Average ----------------------------------------------------------+ 
+#
+#  Sector 1
+#
+    G11      x        y        outlay   time     -           g1 (Dendri./Spheri.)
+    G21      x        y        outlay   time     -           g2 (Sphericity/Size)
+    RO1      x        y        outlay   time     kg/m3       Snow Density
+    TI1      x        y        outlay   time     C           Ice/Snow Temperature
+    WA1      x        y        outlay   time     kg/kg       Liquid Water Content
+#
+#  Sector 2
+#
+#   G12      x        y        outlay   time     -           g1 (Dendri./Spheri.)
+#   G22      x        y        outlay   time     -           g2 (Sphericity/Size)
+#   RO2      x        y        outlay   time     kg/m3       Snow Density
+#   TI2      x        y        outlay   time     C           Ice/Snow Temperature
+#   WA2      x        y        outlay   time     kg/kg       Liquid Water Content
+#
+#  Sector 3
+#
+#   G13      x        y        outlay   time	 -           g1 (Dendri./Spheri.)
+#   G23      x        y        outlay   time	 -           g2 (Sphericity/Size)
+#   RO3      x        y        outlay   time	 kg/m3       Snow Density
+#   TI3      x        y        outlay   time	 C           Ice/Snow Temperature
+#   WA3      x        y        outlay   time	 kg/kg       Liquid Water Content
+#
+#-- Soil & Last Day Average ---------------------------------------------------------------+ 
+#
+#  Sector 1
+#
+#   SLT1     x        y        sollay   time     C           Soil Temperature
+#   SLQ1     x        y        sollay   time     kg/kg       Soil Humidity
+#
+#  Sector 2
+#
+#   SLT2     x        y        sollay   time     C           Soil Temperature
+#   SLQ2     x        y        sollay   time     kg/kg       Soil Humidity
+#
+#  Sector 3
+#
+#   SLT3     x        y        sollay   time     C           Soil Temperature
+#   SLQ3     x        y        sollay   time     kg/kg       Soil Humidity
+#
+#-- Snow Pack actually --------------------------------------------------------------------+ 
+#
+#   nSSN     x        y        sector   time     -           Nbr of Snow Layers    
+#   nISN     x        y        sector   time     -           Nbr of Ice Layers    
+    SWSN     x        y        sector   time     mmWE        Surficial Water Specific Mass
+    ALSN     x        y        -        time     -           Albedo
+#...........................................................................................
+#
+#  Sector 1
+#
+#   agSN1    x        y        snolay   time     -           Snow Age                       
+#   dzSN1    x        y        snolay   time     m           Snow Depth                     
+#   nhSN1    x        y        snolay   time     -           Snow Historics                 
+#   g1SN1    x        y        snolay   time     -           Snow g1 (Dendricity/Sphericity)
+#   g2SN1    x        y        snolay   time     -           Snow g2 (Sphericity/Grain Size)
+#   roSN1    x        y        snolay   time     kg/m3       Snow Density                   
+#   tiSN1    x        y        snolay   time     K           Snow Temperature               
+#   waSN1    x        y        snolay   time     kg/kg       Snow Humidity Content          
+#
+#  Sector 2
+#
+#   agSN2    x        y        snolay   time     -           Snow Age                       
+#   dzSN2    x        y        snolay   time     m           Snow Depth                     
+#   nhSN2    x        y        snolay   time     -           Snow Historics                 
+#   g1SN2    x        y        snolay   time     -           Snow g1 (Dendricity/Sphericity)
+#   g2SN2    x        y        snolay   time     -           Snow g2 (Sphericity/Grain Size)
+#   roSN2    x        y        snolay   time     kg/m3       Snow Density                   
+#   tiSN2    x        y        snolay   time     K           Snow Temperature               
+#   waSN2    x        y        snolay   time     kg/kg       Snow Humidity Content          
+#
+#  Sector 3
+#
+#   agSN3    x        y        snolay   time     -           Snow Age                       
+#   dzSN3    x        y        snolay   time     m           Snow Depth                     
+#   nhSN3    x        y        snolay   time     -           Snow Historics                 
+#   g1SN3    x        y        snolay   time     -           Snow g1 (Dendricity/Sphericity)
+#   g2SN3    x        y        snolay   time     -           Snow g2 (Sphericity/Grain Size)
+#   roSN3    x        y        snolay   time     kg/m3       Snow Density                   
+#   tiSN3    x        y        snolay   time     K           Snow Temperature               
+#   waSN3    x        y        snolay   time     kg/kg       Snow Humidity Content          
+#
+#-- Soil actually -------------------------------------------------------------------------+ 
+#
+#  Sector 1
+#
+#   SLTSN1   x        y        sollay   time     C           Soil Temperature                
+#   SLQSN1   x        y        sollay   time     kg/kg       Soil Humidity Content            
+#
+#  Sector 2
+#
+#   SLTSN2   x        y        sollay   time     C           Soil Temperature                
+#   SLQSN2   x        y        sollay   time     kg/kg       Soil Humidity Content           
+#
+#  Sector 3
+#
+#   SLTSN3   x        y        sollay   time     C           Soil Temperature                
+#   SLQSN3   x        y        sollay   time     kg/kg       Soil Humidity Content                    
+#
+#    
+#-- 6-hourly value -------------------------------------------------------------------------+ 
+#
+#   TIMEh    atmxh    -        -        time     h           HHMMSS
+#   TTh      x        y        atmxh    time     C           Hourly Temperature
+#   STh      x        y        atmxh    time     C           Hourly Surface Temperature
+#   QQh      x        y        atmxh    time     g/kg        Hourly Specific Humidity
+#   UUh      x        y        atmxh    time     m/s         Hourly x-Wind Speed component 
+#   VVh      x        y        atmxh    time     m/s         Hourly y-Wind Speed component 
+#   SPh      x        y        atmxh    time     hPa         Hourly Surface Pressure
+#   SWDh     x        y        atmxh    time     w/m2        Hourly Short Wave Downward
+#   LWDh     x        y        atmxh    time     W/m2        Hourly Long  Wave Downward
+#   LWUh     x        y        atmxh    time     W/m2        Hourly Long  Wave Upward
+#   SHFh     x        y        atmxh    time     W/m2        Hourly Sensible Heat Flux
+#   LHFh     x        y        atmxh    time     W/m2        Hourly Latent Heat Flux
+#   ALh      x        y        atmxh    time     -           Hourly Albedo
+#   CCh      x        y        atmxh    time     -           Hourly Cloud Cover
+#   PRh      x        y        atmxh    time     mmWE/3h     Hourly Precipitation
+#   MEh      x        y        atmxh    time     mmWE/3h     Hourly Melt
+#   SNFh     x        y        atmxh    time     mmWE        Hourly Snowfall
+#   LWC1mh   x        y        atmxh    time     mmWE        Hourly Total Liquid Water Content to 1m
+#   LWC2mh   x        y        atmxh    time     mmWE        Hourly Total Liquid Water Content to 1m
+#
+#------------------------------------------------------------------------------------------+
+# 
+# Remarks:                    
+# --------
+#
+# -1- Put characters (#) into the first 4 rows if you don't want the variable in the output
+# 
+# -2- Defined dimensions are: 
+#     a) x and y,
+#     b) sector   = see MARsSN.inc  (= nsx) 
+#     c) atmlay   = see MAR_IB.inc  (= Nbr atmospheric layer in OUTice.f)
+#     d) outlay   = see MAR_IB.inc  (= Nbr snow        layer in OUTice.f)
+#     e) snolay   = see MAR_SV_inc  (= nsno)                       
+#     f) sollay   = see MAR_SV.inc  (= nsol)
