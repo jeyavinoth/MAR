@@ -23,7 +23,7 @@
 # User information
 #
 
-Email="xavier.fettweis@ulg.ac.be"
+Email="jeyavinoth@gmail.com"
 
 #===============================================================================
 #                          TECHNICAL INFORMATIONS                               
@@ -38,7 +38,7 @@ WLDreg=GR                       # world region (e.g. GR, AN, EU, BE, WA...)     
 # CLUSTER
 
 # ------------------------------------------
-  HOMdir=/climato_tmp1/$USER ; cluster=linux
+  HOMdir=/home/users/$USER ; cluster=linux
 # ------------------------------------------
 
 # -----------------------------------------
@@ -90,13 +90,13 @@ WRKmsg=$MARsim/msg		             # work      directory path (batched messages)
 # STOCK
 
 
-stock=139.165.29.17                          # address of the mass storage system*
-ustock=fettweis
+stock=192.168.0.103
+ustock=$USER
 
 sftp=y                                       # y or n
 
-STKmar=/climato_tmp1/fettweis/MAR/out        # MAR       directory path on stock
-STKsrf=/climato_tmp1/fettweis/MAR/in         # DATA      directory path on stock (FAO,SST...)
+STKmar=/home/users/jj/MAR/out        # MAR       directory path on stock
+STKsrf=/home/users/jj/MAR/in         # DATA      directory path on stock (FAO,SST...)
 STKlsc=$STKsrf/ECMWF                         # LSC files directory path on stock
 
 # foehn
@@ -129,7 +129,7 @@ fi
 
 #===============================================================================
 
-PATH="$PATH:$MARbin:$HOME/bin:$HOME/util/bin"
+#PATH="$PATH:$MARbin:$HOME/bin:$HOME/util/bin"
 
 #===============================================================================
 

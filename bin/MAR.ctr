@@ -42,16 +42,17 @@ RCP_CMIP5=RCP85 # RCP scenario (RCP26,RCP45,RCP60,RCP85)
 #                                                                               
 
 d1I="01"                 # day                                              [dd]
-moI="07"                 # month                                            [mm]
-yrI="1991"               # year                                           [yyyy]
+moI="01"                 # month                                            [mm]
+yrI="1979"               # year                                           [yyyy]
 
 #                                                                               
 # Global simulation: final   date     (can     be modified once the job on hand)
 #                                                                               
 
 d2F="31"                 # day                                              [dd]
-moF="12"                 # month                                            [mm]
-yrF=$(( $yrI + 000 ))    # year                                           [yyyy]
+moF="01"                 # month                                            [mm]
+#yrF=$(( $yrI + 000 ))    # year                                           [yyyy]
+yrF=1979    # year                                           [yyyy]
 
 #                                                                               
 # Time steps (ts)                     (can NOT be modified once the job on hand)

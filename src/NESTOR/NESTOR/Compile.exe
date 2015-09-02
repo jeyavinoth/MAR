@@ -25,7 +25,7 @@
      f77="ifort"
       o1="-w -zero -vec_report0"
       o2="-lnetcdf_ifort"
-  netcdf="/usr/include/netcdf.inc"
+  netcdf="/usr/local/include/netcdf.inc"
 
 #   IRIX64 6.5 (rhodes)
 #   -------------------

@@ -4,8 +4,8 @@ C +   ---------------------
 
       INTEGER mx,my,mz,mzabso,mw,nvx,nsl,nbdom,nsno
 
-      PARAMETER (mx    = 175)   ! X-grid
-      PARAMETER (my    = 151)   ! Y-grid
+      PARAMETER (mx    =  80)   ! X-grid
+      PARAMETER (my    = 135)   ! Y-grid
       PARAMETER (mz    =  23)   ! Z-grid 
       PARAMETER (mzabso=   4)   ! Z-grid 
 
@@ -13,7 +13,7 @@ C +   ---------------------
       PARAMETER (mw    =   2)   ! Sub-division of grid cell (Deardorff)
 
       PARAMETER (nsl   =   7)   ! Soil layers               (SVAT)
-      PARAMETER (nsno  =  20)   ! Snow layers               (Snow model)
+      PARAMETER (nsno  =  25)   ! Snow layers               (Snow model)
       PARAMETER (nbdom =   2)   ! Number of continents      ("GLOveg.f")
 
 
@@ -29,8 +29,8 @@ C +---1. SIZE of the SUB-REGION (in grid points)
 
       PARAMETER (isLMz = 0)
 
-      PARAMETER (ni = 360)
-      PARAMETER (nj =  41)
+      PARAMETER (ni = 170)
+      PARAMETER (nj =  40)
       PARAMETER (njv=  nj-isLMz)
       PARAMETER (nk =  60)
 
