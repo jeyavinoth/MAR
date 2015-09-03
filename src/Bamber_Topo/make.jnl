@@ -1,0 +1,24 @@
+use Greenland_bedrock_topography_and_geometry_062012_JGriggs.nc 
+set reg/i=501:2001/j=101:2901
+
+set mem/size=500
+
+
+let xx=PROJECTION_X_COORDINATE
+let yy=PROJECTION_Y_COORDINATE
+let bed=BEDROCKELEVATION
+let ice=ICETHICKNESS
+let srf=SURFACEELEVATION
+let srf_err=SURFACERMSE
+let bed_err=BEDROCKERROR
+let msk=LANDMASK
+let nbr=NUMBERAIRBORNEPOINTS
+let bed_msk=BEDROCKCHANGEMASK
+let srf_msk=ICESHELFSOURCEMASK
+let geo=geoid
+save/file=toto.nc/clobber xx,yy,bed,ice,srf,srf_err,bed_err,msk,nbr,bed_msk,srf_msk,geo
+
+cancel reg/all
+use bamber1km_lonlat.nc
+save/file=toto.nc/append lon,lat
+
