@@ -1,0 +1,13 @@
+cancel var/all
+cancel data/all
+cancel reg/all
+
+use 25km.nc
+
+define grid/x=LON/y=LAT         ggrid
+
+file/var=sh/grid=ggrid/col=1 bamber_sh_25km.dat
+file/var=msk/grid=ggrid/col=1 bamber_msk_25km.dat
+file/var=ice/grid=ggrid/col=1 bamber_ice_25km.dat
+
+shade msk[d=3] ; contour/over/lev=(0,1,0.1) ice

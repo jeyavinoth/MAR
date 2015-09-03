@@ -1,0 +1,2 @@
+ifort -fast -mp1 bamber_index.f90 libUN.f    -lnetcdf_ifort -o bamber_index.exe
+ifort -fast -mp1 bamber_interpol.f90 libUN.f -lnetcdf_ifort -o bamber_interpol.exe
