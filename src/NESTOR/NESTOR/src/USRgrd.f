@@ -33,11 +33,11 @@ C +   ---------------
       PARAMETER  (nsvat=12)
       PARAMETER  (nigbp=17)
 
-      INTEGER     i,j,k,l,var2(80,140)
+      INTEGER     i,j,k,l,var2(mx,my)
   
       REAL        SVAT(0:nsvat),IGBP(nigbp),convert(nigbp,0:nsvat),
      .            svat_frac (3),iIGBP(nigbp),igbp_z0(nigbp),
-     .            tmp1,tmp2,ELA,var1(80,140), svat_class(3),frac_tot
+     .            tmp1,tmp2,ELA,var1(mx,my), svat_class(3),frac_tot
 
 C +   ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -49,26 +49,32 @@ C +   =====================
       write (*,*) 'Special topo for Greenland Simulation'
       write (*,*)
 
-      open (unit=1,status='old',file='input/TOPO/MAR_GR_ice.dat')
-      read(1,'(f8.3)')   var1
-      close(1)
-     
+      call CF_READ2D("input/TOPO/GRD-25km-80x135.cdf"
+     .               ,'MSK',1,mx,my, 1,var1)
+
       do i=1,mx ; do j=1,my
-       NSTice(i,j)=var1(i,j)
-      enddo     ; enddo      
+       if(var1(i+0,j+0)==1) then
+        NSTsol(i,j)=4
+       else
+        NSTsol(i,j)=1
+       endif
+      enddo ; enddo
 
-      open (unit=1,status='old',file='input/TOPO/MAR_GR_sh.dat')
-      read(1,'(f12.6)') var1
-      close(1)
+      call CF_READ2D("input/TOPO/GRD-25km-80x135.cdf "
+     .               ,'ICE',1,mx,my, 1,var1)
+      
+      do i=1,mx ; do j=1,my
+       NSTice(i,j)=var1(i+0,j+0)*100.
+      enddo     ; enddo
 
-      open (unit=1,status='old',file='input/TOPO/MAR_GR_isol.dat')
-      read(1,'(i4)')   var2
-      close(1)
+      call CF_READ2D("input/TOPO/GRD-25km-80x135.cdf "
+     .               ,'SRF',1,mx,my, 1,var1)
 
       do i=1,mx ; do j=1,my
        NST_sh(i,j)=var1(i+0,j+0)
-       NSTsol(i,j)=var2(i+0,j+0)
-      enddo ; enddo
+
+      enddo     ; enddo
+
 
       ENDIF        
 
