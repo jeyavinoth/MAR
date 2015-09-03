@@ -1,1 +1,1 @@
-      INCLUDE '/usr/include/netcdf.inc'
+      INCLUDE '/usr/local/include/netcdf.inc'

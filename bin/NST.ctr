@@ -28,7 +28,7 @@
 #                                                                               
 
 n01=1             # 1: Nst field comput. / 2: Rain disagr. / 3: Wind gust estim.
-n03=EIN           # Large-scale model (e.g. E15, E40, MAR, TVM)             [a3]
+n03=NC2           # Large-scale model (e.g. E15, E40, MAR, TVM)             [a3]
 n04=MAR           # Nested model, e.g. MAR, EUR                             [a3]
 n05="06"          # Time interval between two forcings                      [hh]
 
