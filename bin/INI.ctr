@@ -31,7 +31,7 @@ Email="jjeyaratnam@ccny.cuny.com"
 # Domain information                                                            
 #                                                                               
 
-WLDreg=GR                       # world region (e.g. GR, AN, EU, BE, WA...)     [a2]
+WLDreg=EU                       # world region (e.g. GR, AN, EU, BE, WA...)     [a2]
                                                                           
 #===============================================================================
 

@@ -65,7 +65,7 @@ C +   ******************
 
 C +---Case of bisextil year
 C +   ---------------------
-      IF (.not.M30d.and..not.f28d) THEN
+      IF (M30d.eqv..false..and.f28d.eqv..false.) THEN
         IF (mod(year,4).eq.0.and.(mod(year,100).ne.0
      .                        .or.mod(year,400).eq.0)) THEN
          Nmonth(2)=29
@@ -136,7 +136,7 @@ C +   ---------------
 
 C +---Case of bisextil year
 C +   ---------------------
-      IF (.not.M30d.and..not.f28d) THEN
+      IF (M30d.eqv..false..and.f28d.eqv..false.) THEN
         IF (mod(year,4).eq.0.and.(mod(year,100).ne.0
      .                        .or.mod(year,400).eq.0)) THEN
 

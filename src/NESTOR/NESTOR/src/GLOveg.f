@@ -54,23 +54,25 @@ C +   ---------------
      .        AFR_ID,ncid(nbdom),start(3),count(3),AFR_size_X,
      .        VEG_ID(nbdom),AFR_size_Y,EUR_size_X,EUR_size_Y,
      .        EUR_ID,EURcid,AFRcid,idom,frac_itot,EUidom,AFidom,
-     .        ii1,ii2,jj1,jj2,mmx,mmy,ido,idomi,s0,s1
+     .        ii1,ii2,jj1,jj2,mmx,mmy,ido,idomi,s0,s1,
+     .        US_size_X,US_size_Y,US_ID,UScid,USidom
 
       REAL    AUXlo1,AUXla1,AUXlo2,AUXla2,dx,dy,degrad,frac_tot,
      .        AUXlon,AUXlat,G_dx,G_dy,G_lon1(nbdom),G_lat1(nbdom),
      .        aux,aux1,aux2,aux3,AFR_G_lon1,AFR_G_lat1,AFR_G_reso,
      .        cmpt,AFR_G_lon2,AFR_G_lat2,EUR_G_lat1,EUR_G_lon1,
      .        icmpt,EUR_G_reso,EUR_G_lon2,EUR_G_lat2,G_reso(nbdom),
-     .        NSTmsk(mx,my),tmp_z0(mx,my)
+     .        NSTmsk(mx,my),tmp_z0(mx,my),
+     .        US_G_reso,US_G_lon1,US_G_lon2,US_G_lat1,US_G_lat2
 
       INTEGER svat_class(nvx),WK_tmp(nigbp)
 
       REAL    SVAT(0:nsvat),IGBP(nigbp),convert(nigbp,0:nsvat),
      .        svat_frac (nvx),iIGBP(nigbp),igbp_z0(nigbp)
 
-      LOGICAL Vtrue,AFRdom,EURdom
+      LOGICAL Vtrue,AFRdom,EURdom,USdom
 
-      CHARACTER*80 AFRveg_file,EURveg_file
+      CHARACTER*80 AFRveg_file,EURveg_file,USveg_file
 
 
 C +---Data
@@ -115,11 +117,30 @@ C +   ------
 c     AFR_G_lat2= AFR_G_lat1+REAL(AFR_size_Y)*AFR_G_reso
       AFR_G_lat2= 0.3800000E+02
 
+C +-- JJ's adding VEGE data for US
+ 
+      USidom = 3
+
+      US_G_lat1=-0.9999999E+01
+      US_G_lon1=-0.1311400E+03
+      US_G_reso= 0.0100000E+00
+      US_size_X= 5001         
+      US_size_Y= 6000         
+      US_G_lon2= US_G_lon1+REAL(US_size_X)*US_G_reso
+      US_G_lat2= US_G_lat1+REAL(US_size_Y)*US_G_reso
+c      US_G_lat2= 0.500000E+02
+     
+      write(*,*) "US Bounding Vegetation Box" 
+      write(*,*) US_G_lat1, US_G_lat2, US_G_lon1, US_G_lon2
+      write(*,*) 
+
+
 C +---Select grid parameters
 C +   ----------------------
 
       AFRdom=.false.
       EURdom=.false.
+      USdom =.false.
 
       DO j=1,my
       DO i=1,mx
@@ -143,6 +164,16 @@ C +   ----------------------
         NSTinc(i,j,EUidom)=.false.
        ENDIF
 
+c     added US check for domain criteria - JJ
+
+       IF (AUXlon.gt.US_G_lon1.and.AUXlon.lt.US_G_lon2.and.
+     .     AUXlat.gt.US_G_lat1.and.AUXlat.lt.US_G_lat2) THEN
+        USdom            =.true.
+        NSTinc(i,j,USidom)=.true.
+       ELSE
+        NSTinc(i,j,USidom)=.false.
+       ENDIF
+       
       ENDDO
       ENDDO
 
@@ -150,7 +181,7 @@ C +   ----------------------
 C +---Screen message
 C +   ==============
 
-      IF (Region.eq."GRD") GOTO 990
+c      IF (Region.eq."GRD") GOTO 990
 
       IF (AFRdom) THEN
        write(6,*) 'Global land cover (IGBP) over Africa'
@@ -160,11 +191,16 @@ C +   ==============
        write(6,*) 'Global land cover (IGBP) over Europe'
       ENDIF
 
-      IF (AFRdom.or.EURdom) THEN
+      IF (USdom) THEN
+       write(6,*) 'Global land cover (IGBP) over United States'
+      ENDIF
+
+
+      IF (AFRdom.or.EURdom.or.USdom) THEN
        write(6,*) '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
       ENDIF
 
-      IF ((.not.EURdom).and.(.not.AFRdom)) THEN
+      IF ((.not.EURdom).and.(.not.AFRdom).and.(.not.USdom)) THEN
        write(6,*) '***************'
        write(6,*) '*** CAUTION ***'
        write(6,*) '***************'
@@ -367,6 +403,19 @@ C +             *****
 C +             *****
       ENDIF
 
+      IF (USdom) THEN
+       nbchar=1
+       DO i=1,60
+        IF (USveg_dir(i:i).ne.' ') nbchar=i
+       ENDDO
+       USveg_file = USveg_dir(1:nbchar) // 'USveg_IGBP.nc'
+C +             *****
+       UScid = NCOPN(USveg_file,NCNOWRIT,Rcode)
+       US_ID = NCVID(UScid,'IGBP',Rcode)
+C +             *****
+      ENDIF
+
+
 C +---Select domains (Africa and/or Europe)
 C +   =====================================
 
@@ -392,6 +441,17 @@ C +   -----------------
       size_Y(AFidom)=AFR_size_Y
       VEG_ID(AFidom)=AFR_ID
       ncid  (AFidom)=AFRcid
+
+C +---idom = 3 : United States - JJ 
+C +   -----------------
+
+      G_lat1(USidom)=US_G_lat1
+      G_lon1(USidom)=US_G_lon1
+      G_reso(USidom)=US_G_reso
+      size_X(USidom)=US_size_X
+      size_Y(USidom)=US_size_Y
+      VEG_ID(USidom)=US_ID
+      ncid  (USidom)=UScid
 
 
 C +---Treatment of each NST grid point (except boundaries)
@@ -812,16 +872,24 @@ C +         ******
 C +         ******
       ENDIF
 
+      IF (USdom) THEN
+C +         ******
+       CALL NCCLOS(UScid,Rcode)
+C +         ******
+      ENDIF
+
+
 
 C +   ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
 990   CONTINUE
 
-      IF (region.eq."GRD") call USRgrd('GLOveg') ! Greenland
-      IF (region.eq."EUR") call USReur('GLOveg') ! Iceland
+c      IF (region.eq."GRD") call USRgrd('GLOveg') ! Greenland
+c      IF (region.eq."EUR") call USReur('GLOveg') ! Iceland
 
       write(6,*)
+
 
       RETURN
       END

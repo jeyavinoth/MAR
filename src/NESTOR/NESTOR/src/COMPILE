@@ -48,7 +48,7 @@ PMP_DP=n          #MAPOST always in simple precision
 
 #compilor set
 
-set_foc=1         #compilor set (foc=FOrtran Compilor)
+set_foc=1        #compilor set (foc=FOrtran Compilor)
                   #     (see further for detailed compiling and linking options)
 
                   # set_foc  machine                           Fortran compilor
@@ -98,21 +98,31 @@ case $set_foc in
 (1)  #OpenSuse Linux 12.3 (ifort)
   export inf="OpenSuse Linux 12.3 (tested with ifort 12.0, 11.1 and 10.1 64bits)"
   export foc="ifort"
-  export opt="-w -zero -vec_report0 -static -mp1 -ipo -O3 -xSSE4.1 -traceback" # -assume buffered_io
+  export opt="-w -zero -static -vec_report0 -shared-intel -mcmodel=medium -mp1 -ipo -O3 -xSSE4.1 -traceback -assume buffered_io" # -132
   export lnk="-lnetcdf_ifort"
-  export netcdf="/usr/include/netcdf.inc" ;;
+  export netcdf="/home/users/jj/model/MAR/src/libMAR/NetCDF.inc"
+
+  if [ $cluster == "nasa" ] ; then
+   export lnk="-L /discover/nobackup/eunoble/model/MAR_Libs -lnetcdf_ifort"
+   export netcdf="/discover/nobackup/eunoble/model/MAR_Libs/netcdf.inc"
+  fi
+
+  ;;
 (2) #OpenSuse Linux 12.3 (gfortran)
   export inf="OpenSuse Linux 12.3 (gfortran 4.7.2)"
   export foc="gfortran"
-  export opt="-w -march=native -funsafe-math-optimizations -fno-rounding-math -fno-math-errno -fcx-limited-range -O3 -finline-limit=600 -floop-interchange -flto"
+  export opt="-w -march=native -ffinite-math-only -fcx-limited-range -O3 -finline-limit=600 -floop-interchange -flto -fno-rounding-math -fno-math-errno"
+  export opt="-w -march=native -fcx-limited-range -O3 -finline-limit=600 -floop-interchange -flto"
   export lnk="-lnetcdff -lnetcdf"
   export netcdf="/usr/include/netcdf.inc" ;;
+
 (3) # foehn.ujf-grenoble.fr
   export inf="foehn.ujf-grenoble.fr"
   export foc="ifort"
   export opt="-w -zero -vec_report0 -static -O3 -fast -mp1 -prec-div -traceback"
   export lnk="/home/dverfail/MAR/lib/lib/libnetcdf.a"
   export netcdf="/home/dverfail/MAR/lib/include/netcdf.inc" ;;
+
 (*)  #UNDEFINED!!! -> exit
   echo '@&?%! '"compilor error: set_foc undefined [$set_foc]" && exit
 esac
@@ -435,11 +445,22 @@ if [ $MP = "T" ] ; then
 fi
 
 
+echo ""
+
+if [ $foc != "gfortran" ] ; then
+         $foc -c -O3 libUN.f
+ Fgoon  "$foc -c -O3 libUN.f"
+         ar   -cq    libUN.a libUN.o
+         rm   -f             libUN.o    
+fi
+
 #linking                              
 
 echo ; REMARK "linking"
 
-time $foc $openmp  $opt  *.o ${radCEPo}  -o MAR_$runnam.exe  $lnk
+[ -f libUN.a ] && libUN=libUN.a
+
+time $foc $openmp  $opt  *.o ${radCEPo}  -o MAR_$runnam.exe $libUN $lnk
 tmp=$?
 
 #

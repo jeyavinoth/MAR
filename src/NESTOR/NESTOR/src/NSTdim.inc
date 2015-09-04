@@ -4,8 +4,8 @@ C +   ---------------------
 
       INTEGER mx,my,mz,mzabso,mw,nvx,nsl,nbdom,nsno
 
-      PARAMETER (mx    =  80)   ! X-grid
-      PARAMETER (my    = 135)   ! Y-grid
+      PARAMETER (mx    = 160)   ! X-grid
+      PARAMETER (my    = 160)   ! Y-grid
       PARAMETER (mz    =  23)   ! Z-grid 
       PARAMETER (mzabso=   4)   ! Z-grid 
 
@@ -14,7 +14,7 @@ C +   ---------------------
 
       PARAMETER (nsl   =   7)   ! Soil layers               (SVAT)
       PARAMETER (nsno  =  25)   ! Snow layers               (Snow model)
-      PARAMETER (nbdom =   2)   ! Number of continents      ("GLOveg.f")
+      PARAMETER (nbdom =   3)   ! Number of continents      ("GLOveg.f")
 
 
 C +---LSC domain dimensions
@@ -29,10 +29,10 @@ C +---1. SIZE of the SUB-REGION (in grid points)
 
       PARAMETER (isLMz = 0)
 
-      PARAMETER (ni = 170)
-      PARAMETER (nj =  40)
+      PARAMETER (ni = 144)
+      PARAMETER (nj =  73)
       PARAMETER (njv=  nj-isLMz)
-      PARAMETER (nk =  60)
+      PARAMETER (nk =  18)
 
 C     Warning:
 C     For LMDz, you may use the scalar grid size, nj= size(lat_s) 

@@ -49,7 +49,8 @@ C +...NORTH AMERICA
       NAMveg_dir = PFXdir(1:PFXsiz)//'VEGE/'
 C +...SOUTH AMERICA
       SAMveg_dir = PFXdir(1:PFXsiz)//'VEGE/'
-
+C +...United States
+      USveg_dir = PFXdir(1:PFXsiz)//'VEGE/'
 
 C +---VEGETATION - CORINE Classification - EUROPE
 C +   -------------------------------------------

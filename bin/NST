@@ -441,7 +441,7 @@ findsuitablefile () {
        #[ $1 = "NOR" ] || [ $1 = "MIR" ] || [ $1 = "CM5" ] || [ $1 = "CSI" ] || \
        #[ $1 = "BCC" ] || [ $1 = "20C" ] || [ $1 = "IPL" ] || [ $1 = "BNU" ] || \
        #[ $1 = "NC1" ] || [ $1 = "NC2" ] || [ $1 = "AC3" ] || [ $1 = "ER2" ]  ; then
-    fil[10#$mf]=$1.$Pyr.$Pmo.${d1}-$d2.$LSCreg.nc
+    fil[10#$mf]=$1.$Pyr.$Pmo.${d1}-$d2.nc
     fily[10#$mf]=$Pyr
     echo "        LSC input file: ${fil[10#$mf]}"    
   fi
@@ -476,8 +476,8 @@ lsc="ECM"
 [ "$n03" == "AC3" ] && lsc="AC3" && STKlsc=$STKsrf/ACCESS1-3$n02
 [ "$n03" == "E20" ] && lsc="ECM" && STKlsc=$STKsrf/ERA-20C 
 
-                   NAMfil="$lsc\*$LSCreg.nc$Z"
-[ $sftp = "y" ] && NAMfil="$lsc*$LSCreg.nc$Z"
+                   NAMfil="$lsc\*.nc$Z" #edit here JJ to take out LSCreg
+[ $sftp = "y" ] && NAMfil="$lsc*.nc$Z"
 
 REMARK "searching existing LSC files on $STKlsc "
 
@@ -1184,8 +1184,19 @@ if [[ $WLDreg != "GR" && $WLDreg != "AN" ]] ; then
   fil=EURveg_IGBP.nc
   BCH "smget \"$STKsrf/$SRFfil\" \"$fil$Z\" \"$WRKdir/input/$SRFfil\""
   [ $nstin1 = "y" ] && BCH "ucX \"$WRKdir/input/$SRFfil\" \"$fil\" \"$Z\""
-
 fi
+
+  #VEGE US -- Hard coded it in 
+  SRFfil=VEGE
+  BCH
+  BCH "  #$SRFfil"
+  BCH
+  BCH "echo ; echo \"  > $SRFfil\" ; echo"
+  BCH "mkdir $WRKdir/input/$SRFfil 2>/dev/null"
+  BCH "cd $WRKdir/input/$SRFfil"
+  fil=USveg_IGBP.nc
+  BCH "smget \"$STKsrf/$SRFfil\" \"$fil$Z\" \"$WRKdir/input/$SRFfil\""
+  [ $nstin1 = "y" ] && BCH "ucX \"$WRKdir/input/$SRFfil\" \"$fil\" \"$Z\""
 
   #NDVI (NDVI01 or NDVI08)
 

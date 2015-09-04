@@ -540,7 +540,9 @@ C +---Global land cover - IGBP (only Africa and Europe)
 C +   -------------------------------------------------
 
       IF (VEGdat) THEN
-
+      
+      write(*,*) "Calling Vegetation Read"
+      write(*,*) "-----------------------"
 C +         ******
        CALL GLOveg
 C +         ******

@@ -1,0 +1,6 @@
+OpenSuse Linux 12.3 (tested with ifort 12.0, 11.1 and 10.1 64bits)
+ifort
+ifort is /home/users/jj/model/MAR/intel/composerxe-2011.2.137/bin/intel64/ifort
+-w -zero -static -vec_report0 -shared-intel -mcmodel=medium -mp1 -ipo -O3 -xSSE4.1 -traceback -assume buffered_io
+-lnetcdf_ifort
+/home/users/jj/model/MAR/src/libMAR/NetCDF.inc

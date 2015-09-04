@@ -1,12 +1,12 @@
 C   +-------------------------------------------------------------------+
-C   |  Subroutine USRgrd                           February 04  NESTING |
+C   |  Subroutine USRgrd                             July 2012  NESTING |
 C   +-------------------------------------------------------------------+
 C   | USRgrd adapt NESTOR to Greenland region                           |
 C   |                                                                   |
 C   | Input : - subnam : Name of the subroutine                         |
 C   | ^^^^^^^            where USRgrd is called                         |
 C   |                                                                   |
-C   | Maintainer : Emilie Vanvyve                                       |
+C   | Maintainer : Xavier Fettweis                                      |
 C   | ^^^^^^^^^^^^                                                      |
 C   |                                                                   |
 C   +-------------------------------------------------------------------+
@@ -29,37 +29,53 @@ C +   ---------------
 
       CHARACTER*6 subnam
 
-      INTEGER     nsvat,nigbp,frac_tot
+      INTEGER     nsvat,nigbp
       PARAMETER  (nsvat=12)
       PARAMETER  (nigbp=17)
 
-      INTEGER     i,j,k,l,svat_class(3),ii,jj
+      INTEGER     i,j,k,l,var2(80,140)
   
       REAL        SVAT(0:nsvat),IGBP(nigbp),convert(nigbp,0:nsvat),
      .            svat_frac (3),iIGBP(nigbp),igbp_z0(nigbp),
-     .            tmp1,tmp2,ELA,ww  
+     .            tmp1,tmp2,ELA,var1(80,140), svat_class(3),frac_tot
 
 C +   ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+C +---Topography for ETOPOg    
+C +   =====================
+
       IF (subnam.eq.'ETOPOg') THEN
 
-      write (*,*) 'No special TOPO loaded for US'
+      write (*,*) 'Special topo for Greenland Simulation'
       write (*,*)
 
-c      ii=46 ; jj=24      
 
-c     do i=-1,1 ; do j=-1,1
+      go to 100
 
-c                          ww=0.05
-c       if (i==0.or. j==0) ww=0.10
-c      if (i==0.and.j==0) ww=0.20
+      open (unit=1,status='old',file='input/TOPO/MAR_GR_ice.dat')
+      read(1,'(f8.3)')   var1
+      close(1)
+     
+      do i=1,mx ; do j=1,my
+       NSTice(i,j)=var1(i,j)
+      enddo     ; enddo      
 
-c       NST_sh(i+ii,j+jj)=NST_sh(i+ii,j+jj)*(1+ww)
+      open (unit=1,status='old',file='input/TOPO/MAR_GR_sh.dat')
+      read(1,'(f12.6)') var1
+      close(1)
 
-c      enddo ; enddo
+      open (unit=1,status='old',file='input/TOPO/MAR_GR_isol.dat')
+      read(1,'(i4)')   var2
+      close(1)
 
-      endif
+      do i=1,mx ; do j=1,my
+       NST_sh(i,j)=var1(i+0,j+0)
+       NSTsol(i,j)=var2(i+0,j+0)
+      enddo ; enddo
 
+100   continue
+
+      ENDIF        
 
 C +   ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -71,24 +87,58 @@ C +   ..........................................
 
       IF (subnam.eq.'GLOveg') THEN
 
-c     for now take out this USR overwrite of vegetation for the United States
-c
+      write(6,*) 'Global land cover (IGBP) over Greenland Region'      
+      write(6,*) '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
 
-      go to 1000
+      DO j=2,my-1
+      DO i=2,mx-1
+
+       NSTfrc(i,j)     = 0.
+       
+       DO k=1,nvx
+        NSTsvt(i,j,k)  = 0 
+        NSTsfr(i,j,k)  = 0
+        NSTveg(i,j,k)  = 0
+        NSTvfr(i,j,k)  = 0
+       END DO
+       
+       IF (NSTsol(i,j).ge.4) THEN
+        
+        NSTsvt(i,j,1)  = 4
+        NSTsfr(i,j,1)  = 100
+        NSTveg(i,j,1)  = 9
+        NSTvfr(i,j,1)  = 100
+        
+        DO k=1,nvx
+         NSTlai(i,j,k) = 2.0
+         NSTglf(i,j,k) = 1.0
+        END DO
+      
+       ELSE
+      
+        NSTsvt(i,j,1)  = 0
+        NSTsfr(i,j,1)  = 100
+        NSTveg(i,j,1)  = -1
+        NSTvfr(i,j,1)  = 100
+      
+        DO k=1,nvx
+         NSTlai(i,j,k) = 0.0
+         NSTglf(i,j,k) = 0.0
+        END DO
+      
+        NST_z0(i,j)    = 0.0013
+      
+       ENDIF
+
+      END DO
+      END DO
 
 C +---IGBP Surface variables
 C +   ======================
 
       DO j=2,my-1
       DO i=2,mx-1 
-
-      IF(NSTsol(i,j)==3) NSTsol(i,j)=4
-
-      IF (NSTsol(i,j) .ge. 4    .and.
-     .    NST__x(i,j) .ge. -30. .and. 
-     .    NST__x(i,j) .le. -10. .and. 
-     .    NST__y(i,j) .ge.  60. .and. 
-     .    NST__y(i,j) .le.  70.) THEN
+      IF (NSTsol(i,j) .ge. 4 ) THEN
       
        DO k=1,nigbp
        DO l=0,nsvat
@@ -97,67 +147,30 @@ C +   ======================
         convert(k,l)  = 0.
        ENDDO
        ENDDO
-          
-       ELA=5000  
- 
-       If (NST_sh(i,j).ge.ELA) NSTsol(i,j)=3
-          
-       IF (nvx .eq. 3) THEN
-       
-       convert( 7, 5) = 30.   ! grass medium
-       convert( 7, 7) = 40.   ! broadleaf low    TUNDRA
-       convert( 7, 8) = 30.   ! broadleaf medium
-       igbp_z0( 7   ) = 0.33
-       
-       convert(16, 4) = 20.   ! grass low
-       convert(16, 7) = 5.    ! broadleaf low  MOUNTAIN
-       convert(16, 0) = 75.   ! barren soil
-       igbp_z0(16   ) = 0.022
-       NSTveg(i,j,nvx)= -1 
-       NSTvfr(i,j,nvx)= 0 
-       
-       if (NST_sh(i,j) .le. ELA) then
-        NSTveg(i,j,1) = 7 
-        NSTveg(i,j,2) = 16        
-        NSTvfr(i,j,1) = 100.0 * (1- NST_sh(i,j)/ ELA)
-        NSTvfr(i,j,2) = 100.0 - NSTvfr(i,j,1)
-       else
-        NSTveg(i,j,1) = 7  
-        NSTveg(i,j,2) = 16        
-        NSTvfr(i,j,1) = 0.0
-        NSTvfr(i,j,2) = 100.0      
-       end if
-                     
-       if (NSTvfr(i,j,2) .gt. NSTvfr(i,j,1)) then
-        NSTveg(i,j,1) = 16 
-        NSTveg(i,j,2) = 7
-        tmp1          = NSTvfr(i,j,1)
-        NSTvfr(i,j,1) = NSTvfr(i,j,2)
-        NSTvfr(i,j,2) = tmp1
-        IGBP(7)       = NSTvfr(i,j,2) / 100.0       
-        IGBP(16)      = NSTvfr(i,j,1) / 100.0 
-       else
-        IGBP(7)       = NSTvfr(i,j,1) / 100.0       
-        IGBP(16)      = NSTvfr(i,j,2) / 100.0           
-       end if
- 
+                 
+       IF(NST__x(i,j).gt.-43) then ! Equilibrium line (m)
+        ELA           = -32759.680d0 + 1001.782d0  * NST__y(i,j)
+     .                  - 7.331d0    * NST__y(i,j) * NST__y(i,j)
+       ELSE
+        ELA           = -23201.445d0 + 746.249d0   * NST__y(i,j)
+     .                  - 5.640d0    * NST__y(i,j) * NST__y(i,j)
        END IF
 
        IF (nvx .eq. 2) THEN
               
-       convert(16, 4) = 50.   ! grass low
-       convert(16, 0) = 50.   ! barren soil
+       convert(16, 4) = 100.   ! grass low
+       convert(16, 0) = 0.     ! barren soil
        igbp_z0(16   ) = 0.022
 
-       convert(15, 4) = 10.    ! grass low
-       convert(15, 0) = 90.    ! barren soil
+       convert(15, 4) = 0.     ! grass low
+       convert(15, 0) = 100.   ! barren soil
        igbp_z0(15   ) = 0.001       
 
-       if(NST_sh(i,j).le.ELA) then
+       if(NSTice(i,j).ge.0) then
         NSTveg(i,j,1) = 15 
         NSTveg(i,j,2) = 16        
-        NSTvfr(i,j,2) = 100.0 * (1- NST_sh(i,j)/ ELA)
-        NSTvfr(i,j,1) = 100.0 -     NSTvfr(i,j,2)
+        NSTvfr(i,j,1) = NSTice(i,j)
+        NSTvfr(i,j,2) = 100.0 - NSTvfr(i,j,1)
        else
         NSTveg(i,j,1) = 15       
         NSTvfr(i,j,1) = 100.0
@@ -166,7 +179,7 @@ C +   ======================
 
         IGBP(15)      = NSTvfr(i,j,1) / 100.0       
         IGBP(16)      = NSTvfr(i,j,2) / 100.0   
-                            
+                  
        END IF
           
 C +...  convertion to SVAT
@@ -211,9 +224,8 @@ C +...  attribute classes and fractions to NST variables
 C +     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         DO k=1,nvx
          NSTsvt(i,j,k)=     svat_class(k)
-         NSTsfr(i,j,k)=NINT(svat_frac (k)*100.)
+         NSTsfr(i,j,k)=min(100.,svat_frac (k)*100.)
         ENDDO
-
 
         DO l=1,nvx
 
@@ -243,30 +255,7 @@ C +     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
       ENDIF
 
-      DO j=2,my-1
-      DO i=2,mx-1 
-      IF (NSTsol(i,j).eq.3) THEN
-
-       DO k=1,nvx
-        NSTsvt(i,j,k)  =  0
-        NSTsfr(i,j,k)  =  0
-        NSTveg(i,j,k)  =  0
-        NSTvfr(i,j,k)  =  0
-        NSTlai(i,j,k)  =  0
-        NSTglf(i,j,k)  =  0
-       ENDDO
-
-        NSTsvt(i,j,nvx)=  0
-        NSTsfr(i,j,nvx)=100
-        NSTveg(i,j,nvx)= -1
-        NSTvfr(i,j,nvx)=100
-
-      END IF 
-      END DO 
-      END DO
-
-1000  continue
-
 C +   ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       
       END SUBROUTINE
+      
