@@ -885,8 +885,8 @@ C +   ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 990   CONTINUE
 
-c      IF (region.eq."GRD") call USRgrd('GLOveg') ! Greenland
-c      IF (region.eq."EUR") call USReur('GLOveg') ! Iceland
+      IF (region.eq."GRD") call USRgrd('GLOveg') ! Greenland
+      IF (region.eq."EUR") call USReur('GLOveg') ! Iceland
 
       write(6,*)
 
